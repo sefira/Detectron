@@ -22,3 +22,7 @@ lib/datasets/data/*
 
 # Generated C files
 lib/utils/cython_*.c
+
+# data used by coco
+*.json
+*.pkl

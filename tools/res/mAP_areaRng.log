@@ -1,0 +1,16 @@
+start result analysis from detection_results.pkl
+
+    Compute mAP under different scale
+    
+Average  Precision	Average Recall  	Condition
+   0.28702855612	  0.401468923569	@[areaRng=small | maxDets=100]
+
+    Compute mAP under different scale
+    
+Average  Precision	Average Recall  	Condition
+  0.499229607719	  0.629596246756	@[areaRng=medium | maxDets=100]
+
+    Compute mAP under different scale
+    
+Average  Precision	Average Recall  	Condition
+   0.57744093951	  0.719646097854	@[areaRng=large | maxDets=100]

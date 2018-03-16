@@ -1,0 +1,85 @@
+start result analysis from detection_results.pkl
+
+    Count the total gt number of each category bbox 
+    
+ClassName       	#Gt bbox        
+person          	           11004
+bicycle         	             316
+car             	            1932
+motorcycle      	             371
+airplane        	             143
+bus             	             285
+train           	             190
+truck           	             415
+boat            	             430
+traffic light   	             637
+fire hydrant    	             101
+stop sign       	              75
+parking meter   	              60
+bench           	             413
+bird            	             440
+cat             	             202
+dog             	             218
+horse           	             273
+sheep           	             361
+cow             	             380
+elephant        	             255
+bear            	              71
+zebra           	             268
+giraffe         	             232
+backpack        	             371
+umbrella        	             413
+handbag         	             540
+tie             	             254
+suitcase        	             303
+frisbee         	             115
+skis            	             241
+snowboard       	              69
+sports ball     	             263
+kite            	             336
+baseball bat    	             146
+baseball glove  	             148
+skateboard      	             179
+surfboard       	             269
+tennis racket   	             225
+bottle          	            1025
+wine glass      	             343
+cup             	             899
+fork            	             215
+knife           	             326
+spoon           	             253
+bowl            	             626
+banana          	             379
+apple           	             239
+sandwich        	             177
+orange          	             287
+broccoli        	             316
+carrot          	             371
+hot dog         	             127
+pizza           	             285
+donut           	             338
+cake            	             316
+chair           	            1791
+couch           	             261
+potted plant    	             343
+bed             	             163
+dining table    	             697
+toilet          	             179
+tv              	             288
+laptop          	             231
+mouse           	             106
+remote          	             283
+keyboard        	             153
+cell phone      	             262
+microwave       	              55
+oven            	             143
+toaster         	               9
+sink            	             225
+refrigerator    	             126
+book            	            1161
+clock           	             267
+vase            	             277
+scissors        	              36
+teddy bear      	             191
+hair drier      	              11
+toothbrush      	              57

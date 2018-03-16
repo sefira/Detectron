@@ -1,0 +1,17 @@
+start result analysis from detection_results.pkl
+
+    Compute different areaRng (small, medium, large) objects' precision & recall 
+    under 0.7 scores
+    
+Precision       	Recall          	Condition
+  0.832101959548	  0.192226890907	@ [areaRng = small | scores >= 0.5 | maxDets = 100]
+  0.852526679139	   0.42724687167	@ [areaRng = medium | scores >= 0.5 | maxDets = 100]
+  0.857669059947	  0.550692007041	@ [areaRng = large | scores >= 0.5 | maxDets = 100]
+
+    Compute different areaRng (small, medium, large) objects' precision & recall 
+    under 0.7 scores
+    
+Precision       	Recall          	Condition
+  0.872768686482	  0.166153949112	@ [areaRng = small | scores >= 0.7 | maxDets = 100]
+  0.875838102156	   0.39883083196	@ [areaRng = medium | scores >= 0.7 | maxDets = 100]
+   0.87283274456	  0.528367187129	@ [areaRng = large | scores >= 0.7 | maxDets = 100]

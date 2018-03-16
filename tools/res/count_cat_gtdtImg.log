@@ -1,0 +1,168 @@
+start result analysis from detection_results.pkl
+
+    Count the total image number where a category gt | dt appears
+    
+======= gt ========
+ClassName       	#image          
+person          	            2693
+bicycle         	             149
+car             	             535
+motorcycle      	             159
+airplane        	              97
+bus             	             189
+train           	             157
+truck           	             250
+boat            	             121
+traffic light   	             191
+fire hydrant    	              86
+stop sign       	              69
+parking meter   	              37
+bench           	             235
+bird            	             125
+cat             	             184
+dog             	             177
+horse           	             128
+sheep           	              65
+cow             	              87
+elephant        	              89
+bear            	              49
+zebra           	              85
+giraffe         	             101
+backpack        	             228
+umbrella        	             174
+handbag         	             292
+tie             	             145
+suitcase        	             105
+frisbee         	              84
+skis            	             120
+snowboard       	              49
+sports ball     	             169
+kite            	              91
+baseball bat    	              97
+baseball glove  	             100
+skateboard      	             127
+surfboard       	             149
+tennis racket   	             167
+bottle          	             379
+wine glass      	             110
+cup             	             390
+fork            	             155
+knife           	             181
+spoon           	             153
+bowl            	             314
+banana          	             103
+apple           	              76
+sandwich        	              98
+orange          	              85
+broccoli        	              71
+carrot          	              81
+hot dog         	              51
+pizza           	             153
+donut           	              62
+cake            	             124
+chair           	             580
+couch           	             195
+potted plant    	             172
+bed             	             149
+dining table    	             501
+toilet          	             149
+tv              	             207
+laptop          	             183
+mouse           	              88
+remote          	             145
+keyboard        	             106
+cell phone      	             214
+microwave       	              54
+oven            	             115
+toaster         	               8
+sink            	             187
+refrigerator    	             101
+book            	             230
+clock           	             204
+vase            	             137
+scissors        	              28
+teddy bear      	              94
+hair drier      	               9
+toothbrush      	              34
+======= dt ========
+ClassName       	#image          
+person          	            2693
+bicycle         	             149
+car             	             535
+motorcycle      	             159
+airplane        	              97
+bus             	             189
+train           	             157
+truck           	             250
+boat            	             121
+traffic light   	             191
+fire hydrant    	              86
+stop sign       	              69
+parking meter   	              37
+bench           	             235
+bird            	             125
+cat             	             184
+dog             	             177
+horse           	             128
+sheep           	              65
+cow             	              87
+elephant        	              89
+bear            	              49
+zebra           	              85
+giraffe         	             101
+backpack        	             228
+umbrella        	             174
+handbag         	             292
+tie             	             145
+suitcase        	             105
+frisbee         	              84
+skis            	             120
+snowboard       	              49
+sports ball     	             169
+kite            	              91
+baseball bat    	              97
+baseball glove  	             100
+skateboard      	             127
+surfboard       	             149
+tennis racket   	             167
+bottle          	             379
+wine glass      	             110
+cup             	             390
+fork            	             155
+knife           	             181
+spoon           	             153
+bowl            	             314
+banana          	             103
+apple           	              76
+sandwich        	              98
+orange          	              85
+broccoli        	              71
+carrot          	              81
+hot dog         	              51
+pizza           	             153
+donut           	              62
+cake            	             124
+chair           	             580
+couch           	             195
+potted plant    	             172
+bed             	             149
+dining table    	             501
+toilet          	             149
+tv              	             207
+laptop          	             183
+mouse           	              88
+remote          	             145
+keyboard        	             106
+cell phone      	             214
+microwave       	              54
+oven            	             115
+toaster         	               8
+sink            	             187
+refrigerator    	             101
+book            	             230
+clock           	             204
+vase            	             137
+scissors        	              28
+teddy bear      	              94
+hair drier      	               9
+toothbrush      	              34

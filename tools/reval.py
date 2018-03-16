@@ -52,7 +52,8 @@ def parse_args():
         '--dataset',
         dest='dataset_name',
         help='dataset to re-evaluate',
-        default='voc_2007_test',
+        #default='voc_2007_test',
+        default='coco_2014_minival',
         type=str
     )
     parser.add_argument(
@@ -92,13 +93,16 @@ def do_reval(dataset_name, output_dir, args):
         core.config.merge_cfg_from_cfg(yaml.load(dets['cfg']))
     else:
         core.config._merge_a_into_b(yaml.load(dets['cfg']), cfg)
-    results = task_evaluation.evaluate_all(
-        dataset,
-        dets['all_boxes'],
-        dets['all_segms'],
-        dets['all_keyps'],
-        output_dir,
-        use_matlab=args.matlab_eval
+    #results = task_evaluation.evaluate_all(
+    #    dataset,
+    #    dets['all_boxes'],
+    #    dets['all_segms'],
+    #    dets['all_keyps'],
+    #    output_dir,
+    #    use_matlab=args.matlab_eval
+    #)
+    results = task_evaluation.evaluate_boxes(
+    dataset, dets['all_boxes'], output_dir, use_matlab=args.matlab_eval
     )
     task_evaluation.log_copy_paste_friendly_results(results)
 
