@@ -108,201 +108,7 @@ def summarize_cat_iou():
             print("{:8}\t{:16}\t{:16}\t{}".
                 format(cat_name[cat_ind]['name'], ap, ar, condition_str))
 
-def summarize_errorType(ious_thrs):
-    '''
-    Compute the ratio of prediect correct V.S. catgeory error V.S. localization error
-    for different category objects' 
-    '''
-    print('''
-    Compute the ratio of prediect correct V.S. catgeory error V.S. localization error
-    for different category objects' 
-    ''')
-    print("IoU threshold is {}".format(ious_thrs))
-    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-        format("ClassName", "Detection Number", "Correct", "Label miss", "Category error", "Localization error"))
-    cat_name = eval_result.cocoGt.loadCats(eval_result.cocoGt.getCatIds())
-    def is_intersec_other(all_ious, dt_ind, all_gt, catId):
-        for gt_ind in range(0, all_ious.shape[1]):
-            if (all_ious[dt_ind, gt_ind] > ious_thrs) and \
-                (catId != all_gt[gt_ind]['category_id']):
-                return True
-        return False
-    
-    cat_ind = 0
-    for catId in p.catIds:
-        dt_count = 0
-        correct = 0
-        label_miss = 0
-        loc_error = 0
-        cat_error = 0
-        #print("run in catId {}".format(catId))
-        for imgId in p.imgIds:
-            # (per cat & per img)'s gt & dt
-            dt = eval_result._dts[imgId, catId]
-            gt = eval_result._gts[imgId, catId]
-            # all groudtruth in this image
-            all_gt = [temp_gt_per_cat for temp_catId in p.catIds for temp_gt_per_cat in eval_result._gts[imgId, temp_catId]]
-            # all category appeared in this image's gt
-            all_cat = [temp_gt["category_id"] for temp_gt in all_gt]
-            # all iou cross cat per dt            
-            g = [temp_gt['bbox'] for temp_gt in all_gt]
-            d = [temp_dt['bbox'] for temp_dt in dt]
-            iscrowd = [int(o['iscrowd']) for o in all_gt]
-            dtgt_ious = eval_result.ious[imgId, catId] # shape = ndarray(dt_num, gt_num)
-            all_ious = maskUtils.iou(d,g,iscrowd) # shape = ndarray(d_num, g_num)
-            dt_count = dt_count + len(dt)
-            # label miss
-            if len(dt) > 0 and not (catId in all_cat):
-                label_miss = label_miss + len(dt)
-                continue
-            if len(dtgt_ious) <= 0:
-                loc_error = loc_error + len(dt)
-            else:
-                for dt_ind in range(0, dtgt_ious.shape[0]):
-                    has_correct = False
-                    has_cat_error = False
-                    has_loc_error = False
-                    for gt_ind in range(0, dtgt_ious.shape[1]):
-                        if (not has_correct):
-                            if (dtgt_ious[dt_ind, gt_ind] > ious_thrs) and \
-                                (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                has_correct = True
-                                break
-                            # localization error
-                            if (dtgt_ious[dt_ind, gt_ind] < ious_thrs) and \
-                                (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                # category error
-                                if is_intersec_other(all_ious, dt_ind, all_gt, catId):
-                                    has_cat_error = True
-                                else:
-                                    has_loc_error = True
-                    if has_correct:
-                        correct = correct + 1
-                    elif has_cat_error:
-                        cat_error = cat_error + 1
-                    elif has_loc_error:
-                        loc_error = loc_error + 1
-        dt_count = float(dt_count)
-        r_correct = correct / dt_count
-        r_cat_error = cat_error / dt_count
-        r_loc_error = loc_error / dt_count
-        r_label_miss = label_miss / dt_count
-        print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-            format(cat_name[cat_ind]['name'], dt_count, r_correct, r_label_miss, r_cat_error, r_loc_error))
-        cat_ind = cat_ind + 1
-
-def summarize_errorType_scale(ious_thrs):
-    '''
-    Compute the ratio of prediect correct V.S. catgeory error V.S. localization error
-    for different category objects' in multi scale
-    '''
-    print('''
-    Compute the ratio of prediect correct V.S. catgeory error V.S. localization error
-    for different category objects' in multi scale
-    ''')
-    print("IoU threshold is {}".format(ious_thrs))
-    print("{:16}\t{:16}\t{:48}\t{:48}\t{:48}\t{:48}".
-        format("ClassName", "Detection Number", "Correct", "Label miss", "Category error", "Localization error"))
-    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-        format("","","small","medium","large","small","medium","large","small","medium","large","small","medium","large"))
-    cat_name = eval_result.cocoGt.loadCats(eval_result.cocoGt.getCatIds())
-    def is_intersec_other(all_ious, dt_ind, all_gt, catId):
-        for gt_ind in range(0, all_ious.shape[1]):
-            if (all_ious[dt_ind, gt_ind] > ious_thrs) and \
-                (catId != all_gt[gt_ind]['category_id']):
-                return True
-        return False
-    
-    cat_ind = 0
-    scale = p.areaRng
-    def get_scale_ind(area):
-        for i in range(1,len(scale)):
-            if area > scale[i][0] and area < scale[i][1]:
-                return i
-        return -1 
-
-    total = {"dt_count": 0.0, "correct": np.zeros(3), "cat_error": np.zeros(3), "loc_error": np.zeros(3), "label_miss": np.zeros(3)}
-    for catId in p.catIds:
-        dt_count = 0
-        correct = np.zeros(3) # small medium large
-        loc_error = np.zeros(3)
-        label_miss = np.zeros(3)
-        cat_error = np.zeros(3)
-        #print("run in catId {}".format(catId))
-        for imgId in p.imgIds:
-            # (per cat & per img)'s gt & dt
-            dt = eval_result._dts[imgId, catId]
-            gt = eval_result._gts[imgId, catId]
-            # all groudtruth in this image
-            all_gt = [temp_gt_per_cat for temp_catId in p.catIds for temp_gt_per_cat in eval_result._gts[imgId, temp_catId]]
-            # all category appeared in this image's gt
-            all_cat = [temp_gt["category_id"] for temp_gt in all_gt]
-            # all iou cross cat per dt            
-            g = [temp_gt['bbox'] for temp_gt in all_gt]
-            d = [temp_dt['bbox'] for temp_dt in dt]
-            iscrowd = [int(o['iscrowd']) for o in all_gt]
-            dtgt_ious = eval_result.ious[imgId, catId] # shape = ndarray(dt_num, gt_num)
-            all_ious = maskUtils.iou(d,g,iscrowd) # shape = ndarray(d_num, g_num)
-            dt_count = dt_count + len(dt)
-            # label miss
-            if len(dt) > 0 and not (catId in all_cat):
-                #label_miss = label_miss + len(dt)
-                for temp_dt in dt:
-                    scale_ind = get_scale_ind(temp_dt['area']) - 1
-                    label_miss[scale_ind] = label_miss[scale_ind] + 1
-                continue
-            if len(dtgt_ious) <= 0:
-                loc_error = loc_error + len(dt)
-            else:
-                for dt_ind in range(0, dtgt_ious.shape[0]):
-                    has_correct = False
-                    has_cat_error = False
-                    has_loc_error = False
-                    for gt_ind in range(0, dtgt_ious.shape[1]):
-                        if (not has_correct):
-                            if (dtgt_ious[dt_ind, gt_ind] > ious_thrs) and \
-                                (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                has_correct = True
-                                break
-                            # localization error
-                            if (dtgt_ious[dt_ind, gt_ind] < ious_thrs) and \
-                                (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                # category error
-                                if is_intersec_other(all_ious, dt_ind, all_gt, catId):
-                                    has_cat_error = True
-                                else:
-                                    has_loc_error = True
-                    scale_ind = get_scale_ind(dt[dt_ind]['area']) - 1
-                    if has_correct:
-                        correct[scale_ind] = correct[scale_ind] + 1
-                    elif has_cat_error:
-                        cat_error[scale_ind]= cat_error[scale_ind] + 1
-                    elif has_loc_error:
-                        loc_error[scale_ind] = loc_error[scale_ind] + 1
-        total["dt_count"] = total["dt_count"] + dt_count
-        total["correct"] = total["correct"] + correct
-        total["cat_error"] = total["cat_error"] + cat_error
-        total["loc_error"] = total["loc_error"] + loc_error
-        total["label_miss"] = total["label_miss"] + label_miss
-        dt_count = float(dt_count)
-        r_correct = correct / dt_count
-        r_cat_error = cat_error / dt_count
-        r_loc_error = loc_error / dt_count
-        r_label_miss = label_miss / dt_count
-        print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-            format(cat_name[cat_ind]['name'], dt_count, r_correct[0], r_correct[1], r_correct[2], r_label_miss[0], r_label_miss[1], r_label_miss[2], r_cat_error[0], r_cat_error[1], r_cat_error[2], r_loc_error[0], r_loc_error[1], r_loc_error[2]))
-        cat_ind = cat_ind + 1
-
-    print("===========================================")
-    total["dt_count"] = float(total["dt_count"])
-    total["correct"] = total["correct"] / total["dt_count"]
-    total["cat_error"] = total["cat_error"] / total["dt_count"]
-    total["loc_error"] = total["loc_error"] / total["dt_count"]
-    total["label_miss"] = total["label_miss"] / total["dt_count"]
-    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-        format("All Class", total["dt_count"], total["correct"][0], total["correct"][1], total["correct"][2], total["label_miss"][0], total["label_miss"][1], total["label_miss"][2], total["cat_error"][0], total["cat_error"][1], total["cat_error"][2], total["loc_error"][0], total["loc_error"][1], total["loc_error"][2]))
-
-def summarize_finerErrorType_scale(score_thrs, iou_rng):
+def summarize_errorType(score_thrs, iou_rng):
     '''
     Compute the ratio of prediect correct V.S. class error V.S. localization error V.S. BG
     for different category objects' in multi scale
@@ -337,8 +143,8 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
         return -1 
 
     total = {"dt_count": 0.0, "correct": np.zeros(3), "cat_error": np.zeros(3), "loc_error": np.zeros(3), "bg_trap": np.zeros(3)}
-    all_cat_total = []
-    all_cat_total_wto_scale = []
+    all_cat_ratio = []
+    all_cat_ratio_wto_scale = []
     for catId in p.catIds:
         dt_count = 0
         correct = np.zeros(3) # small medium large
@@ -360,6 +166,7 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
             iscrowd = [int(o['iscrowd']) for o in all_gt]
             dtgt_ious = eval_result.ious[imgId, catId] # shape = ndarray(dt_num, gt_num)
             all_ious = maskUtils.iou(d,g,iscrowd) # shape = ndarray(d_num, g_num)
+            matched_gt = []
             for dt_ind in range(0, len(dtgt_ious)):
                 if dt[dt_ind]['score'] < score_thrs:
                     continue
@@ -368,12 +175,17 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
                 has_loc_error = False
                 has_bg_trapped = False
                 for gt_ind in range(0, dtgt_ious.shape[1]):
-                    if (not has_correct):
+                    #if (not has_correct):
                         if (dtgt_ious[dt_ind, gt_ind] >= ious_hi):
                             if (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                # correct
-                                has_correct = True
-                                break
+                                if not (gt_ind in matched_gt):
+                                    # correct
+                                    has_correct = True
+                                    matched_gt.append(gt_ind)
+                                    break
+                                else:
+                                    # localization error
+                                    has_loc_error = True
                             else:
                                 # class error
                                 has_cat_error = True
@@ -404,40 +216,53 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
                     loc_error[scale_ind] = loc_error[scale_ind] + 1
                 elif has_bg_trapped:
                     bg_trap[scale_ind] = bg_trap[scale_ind] + 1
-        total["dt_count"] = total["dt_count"] + dt_count
-        total["correct"] = total["correct"] + correct
-        total["cat_error"] = total["cat_error"] + cat_error
-        total["loc_error"] = total["loc_error"] + loc_error
-        total["bg_trap"] = total["bg_trap"] + bg_trap
         dt_count = float(dt_count)
         r_correct = correct / dt_count
         r_cat_error = cat_error / dt_count
         r_loc_error = loc_error / dt_count
         r_bg_trap = bg_trap / dt_count
-        all_cat_total.append((cat_name[cat_ind]['name'], np.sum(correct)/dt_count, dt_count, r_correct, r_cat_error, r_loc_error, r_bg_trap))
-        all_cat_total_wto_scale.append((cat_name[cat_ind]['name'], dt_count, np.sum(correct)/dt_count, np.sum(cat_error)/dt_count, np.sum(loc_error)/dt_count, np.sum(bg_trap)/dt_count))
-        print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-            format(cat_name[cat_ind]['name'], dt_count, r_correct[0], r_correct[1], r_correct[2], r_cat_error[0], r_cat_error[1], r_cat_error[2], r_loc_error[0], r_loc_error[1], r_loc_error[2], r_bg_trap[0], r_bg_trap[1], r_bg_trap[2]))
+        all_cat_ratio.append((cat_name[cat_ind]['name'], np.sum(correct)/dt_count, dt_count, r_correct, r_cat_error, r_loc_error, r_bg_trap))
+        all_cat_ratio_wto_scale.append((cat_name[cat_ind]['name'], dt_count, np.sum(correct)/dt_count, np.sum(cat_error)/dt_count, np.sum(loc_error)/dt_count, np.sum(bg_trap)/dt_count))
         cat_ind = cat_ind + 1
+        # total number etc. accumulate
+        total["dt_count"] = total["dt_count"] + dt_count
+        total["correct"] = total["correct"] + correct
+        total["cat_error"] = total["cat_error"] + cat_error
+        total["loc_error"] = total["loc_error"] + loc_error
+        total["bg_trap"] = total["bg_trap"] + bg_trap
 
-    print("===========================================")
-    total["dt_count"] = float(total["dt_count"])
-    total["correct"] = total["correct"] / total["dt_count"]
-    total["cat_error"] = total["cat_error"] / total["dt_count"]
-    total["loc_error"] = total["loc_error"] / total["dt_count"]
-    total["bg_trap"] = total["bg_trap"] / total["dt_count"]
-    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
-        format("All Class", total["dt_count"], total["correct"][0], total["correct"][1], total["correct"][2], total["cat_error"][0], total["cat_error"][1], total["cat_error"][2], total["loc_error"][0], total["loc_error"][1], total["loc_error"][2], total["bg_trap"][0], total["bg_trap"][1], total["bg_trap"][2]))
-    print("=============== sorted  ==================")
-    all_cat_total = sorted(all_cat_total, key=itemgetter(1))
-    for item in all_cat_total:
+    ratio = {}
+    ratio["dt_count"] = float(total["dt_count"])
+    ratio["correct"] = total["correct"] / total["dt_count"]
+    ratio["cat_error"] = total["cat_error"] / total["dt_count"]
+    ratio["loc_error"] = total["loc_error"] / total["dt_count"]
+    ratio["bg_trap"] = total["bg_trap"] / total["dt_count"]
+    print("================= unsorted =================")
+    for item in all_cat_ratio:
         print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
             format(item[0], item[2], item[3][0], item[3][1], item[3][2], item[4][0], item[4][1], item[4][2], item[5][0], item[5][1], item[5][2], item[6][0], item[6][1], item[6][2]))
+    print("============================================")
+    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
+        format("All Class", ratio["dt_count"], ratio["correct"][0], ratio["correct"][1], ratio["correct"][2], ratio["cat_error"][0], ratio["cat_error"][1], ratio["cat_error"][2], ratio["loc_error"][0], ratio["loc_error"][1], ratio["loc_error"][2], ratio["bg_trap"][0], ratio["bg_trap"][1], ratio["bg_trap"][2]))
+    
+    print("================== sorted =================")
+    all_cat_ratio_sorted = sorted(all_cat_ratio, key=itemgetter(1))
+    for item in all_cat_ratio_sorted:
+        print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
+            format(item[0], item[2], item[3][0], item[3][1], item[3][2], item[4][0], item[4][1], item[4][2], item[5][0], item[5][1], item[5][2], item[6][0], item[6][1], item[6][2]))
+    print("============================================")
+    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
+        format("All Class", ratio["dt_count"], ratio["correct"][0], ratio["correct"][1], ratio["correct"][2], ratio["cat_error"][0], ratio["cat_error"][1], ratio["cat_error"][2], ratio["loc_error"][0], ratio["loc_error"][1], ratio["loc_error"][2], ratio["bg_trap"][0], ratio["bg_trap"][1], ratio["bg_trap"][2]))
+    
     print("=============== sorted wt.o scale ==================")
-    all_cat_total_wto_scale = sorted(all_cat_total_wto_scale, key=itemgetter(2))
-    for item in all_cat_total_wto_scale:
+    all_cat_ratio_wto_scale_sorted = sorted(all_cat_ratio_wto_scale, key=itemgetter(2))
+    for item in all_cat_ratio_wto_scale:
         print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
             format(item[0], item[1], item[2], item[3], item[4], item[5]))
+    print("============================================")
+    print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
+        format("All Class", total["dt_count"], np.sum(total["correct"]) / total["dt_count"], np.sum(total["cat_error"]) / total["dt_count"], np.sum(total["loc_error"]) / total["dt_count"], np.sum(total["bg_trap"]) / total["dt_count"]))
+
 
 def count_cat_gtbbox():
     '''
@@ -533,10 +358,8 @@ if __name__ == "__main__":
     
     #summarize_cat_iou()
 
-    #summarize_errorType(0.5)
-    #summarize_errorType_scale(0.5)
-    for score_thrs in [0.5, 0.7]:
-        summarize_finerErrorType_scale(score_thrs, [0.1, 0.5])
+    for score_thrs in [0.01, 0.5, 0.7]:
+        summarize_errorType(score_thrs, [0.1, 0.5])
 
     #count_cat_gtbbox()
 

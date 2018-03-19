@@ -1,6 +1,7 @@
 import cPickle
 import numpy as np
 from pycocotools import mask as maskUtils
+from operator import itemgetter, attrgetter
 
 def summarize_mAP(iouThr=None, areaRng='all', maxDets=100 ):
     '''
@@ -337,6 +338,7 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
 
     total = {"dt_count": 0.0, "correct": np.zeros(3), "cat_error": np.zeros(3), "loc_error": np.zeros(3), "bg_trap": np.zeros(3)}
     all_cat_total = []
+    all_cat_total_wto_scale = []
     for catId in p.catIds:
         dt_count = 0
         correct = np.zeros(3) # small medium large
@@ -358,6 +360,7 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
             iscrowd = [int(o['iscrowd']) for o in all_gt]
             dtgt_ious = eval_result.ious[imgId, catId] # shape = ndarray(dt_num, gt_num)
             all_ious = maskUtils.iou(d,g,iscrowd) # shape = ndarray(d_num, g_num)
+            matched_gt = []
             for dt_ind in range(0, len(dtgt_ious)):
                 if dt[dt_ind]['score'] < score_thrs:
                     continue
@@ -366,12 +369,17 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
                 has_loc_error = False
                 has_bg_trapped = False
                 for gt_ind in range(0, dtgt_ious.shape[1]):
-                    if (not has_correct):
+                    #if (not has_correct):
                         if (dtgt_ious[dt_ind, gt_ind] >= ious_hi):
                             if (dt[dt_ind]['category_id'] == gt[gt_ind]['category_id']):
-                                # correct
-                                has_correct = True
-                                break
+                                if not (gt_ind in matched_gt):
+                                    # correct
+                                    has_correct = True
+                                    matched_gt.append(gt_ind)
+                                    break
+                                else:
+                                    # localization error
+                                    has_loc_error = True
                             else:
                                 # class error
                                 has_cat_error = True
@@ -413,6 +421,7 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
         r_loc_error = loc_error / dt_count
         r_bg_trap = bg_trap / dt_count
         all_cat_total.append((cat_name[cat_ind]['name'], np.sum(correct)/dt_count, dt_count, r_correct, r_cat_error, r_loc_error, r_bg_trap))
+        all_cat_total_wto_scale.append((cat_name[cat_ind]['name'], dt_count, np.sum(correct)/dt_count, np.sum(cat_error)/dt_count, np.sum(loc_error)/dt_count, np.sum(bg_trap)/dt_count))
         print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
             format(cat_name[cat_ind]['name'], dt_count, r_correct[0], r_correct[1], r_correct[2], r_cat_error[0], r_cat_error[1], r_cat_error[2], r_loc_error[0], r_loc_error[1], r_loc_error[2], r_bg_trap[0], r_bg_trap[1], r_bg_trap[2]))
         cat_ind = cat_ind + 1
@@ -426,11 +435,15 @@ def summarize_finerErrorType_scale(score_thrs, iou_rng):
     print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
         format("All Class", total["dt_count"], total["correct"][0], total["correct"][1], total["correct"][2], total["cat_error"][0], total["cat_error"][1], total["cat_error"][2], total["loc_error"][0], total["loc_error"][1], total["loc_error"][2], total["bg_trap"][0], total["bg_trap"][1], total["bg_trap"][2]))
     print("=============== sorted  ==================")
-    from operator import itemgetter, attrgetter
     all_cat_total = sorted(all_cat_total, key=itemgetter(1))
     for item in all_cat_total:
         print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
             format(item[0], item[2], item[3][0], item[3][1], item[3][2], item[4][0], item[4][1], item[4][2], item[5][0], item[5][1], item[5][2], item[6][0], item[6][1], item[6][2]))
+    print("=============== sorted wt.o scale ==================")
+    all_cat_total_wto_scale = sorted(all_cat_total_wto_scale, key=itemgetter(2))
+    for item in all_cat_total_wto_scale:
+        print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
+            format(item[0], item[1], item[2], item[3], item[4], item[5]))
 
 def count_cat_gtbbox():
     '''
@@ -528,7 +541,7 @@ if __name__ == "__main__":
 
     #summarize_errorType(0.5)
     #summarize_errorType_scale(0.5)
-    for score_thrs in [0.5, 0.7]:
+    for score_thrs in [0.01, 0.5, 0.7]:
         summarize_finerErrorType_scale(score_thrs, [0.1, 0.5])
 
     #count_cat_gtbbox()
