@@ -108,6 +108,10 @@ def summarize_cat_iou():
             print("{:8}\t{:16}\t{:16}\t{}".
                 format(cat_name[cat_ind]['name'], ap, ar, condition_str))
 
+class DetErrorInfo:
+    # catId, imgId, score, errorType, bbox
+    pass 
+
 def summarize_errorType(score_thrs, iou_rng):
     '''
     Compute the ratio of prediect correct V.S. class error V.S. localization error V.S. BG
@@ -145,6 +149,7 @@ def summarize_errorType(score_thrs, iou_rng):
     total = {"dt_count": 0.0, "correct": np.zeros(3), "cat_error": np.zeros(3), "loc_error": np.zeros(3), "bg_trap": np.zeros(3)}
     all_cat_ratio = []
     all_cat_ratio_wto_scale = []
+    all_dt_info = []
     for catId in p.catIds:
         dt_count = 0
         correct = np.zeros(3) # small medium large
@@ -208,14 +213,25 @@ def summarize_errorType(score_thrs, iou_rng):
                                 has_cat_error = True
                 dt_count = dt_count + 1
                 scale_ind = get_scale_ind(dt[dt_ind]['area']) - 1
+                error_type = -1
                 if has_correct:
                     correct[scale_ind] = correct[scale_ind] + 1
+                    error_type = 0
                 elif has_cat_error:
                     cat_error[scale_ind]= cat_error[scale_ind] + 1
+                    error_type = 1
                 elif has_loc_error:
                     loc_error[scale_ind] = loc_error[scale_ind] + 1
+                    error_type = 2
                 elif has_bg_trapped:
                     bg_trap[scale_ind] = bg_trap[scale_ind] + 1
+                    error_type = 3
+                all_dt_info.append(DetErrorInfo())
+                all_dt_info[-1].catId = catId
+                all_dt_info[-1].imgId = imgId
+                all_dt_info[-1].score = dt[dt_ind]['score']
+                all_dt_info[-1].bbox = dt[dt_ind]['bbox']
+                all_dt_info[-1].error_type = error_type
         dt_count = float(dt_count)
         r_correct = correct / dt_count
         r_cat_error = cat_error / dt_count
@@ -230,7 +246,57 @@ def summarize_errorType(score_thrs, iou_rng):
         total["cat_error"] = total["cat_error"] + cat_error
         total["loc_error"] = total["loc_error"] + loc_error
         total["bg_trap"] = total["bg_trap"] + bg_trap
+    return total, all_cat_ratio, all_cat_ratio_wto_scale, all_dt_info
 
+def draw_errorType(score_thrs, iou_rng):
+    _, _, _, all_dt_error_info = summarize_errorType(score_thrs, iou_rng)
+    for imgId in p.imgIds:
+        # all groudtruth in this image
+        all_gt_perimage = [temp_gt_per_cat for temp_catId in p.catIds for temp_gt_per_cat in eval_result._gts[imgId, temp_catId]]
+        if not name in det_dict:
+            image = Image.open(args.folder + args.image_folder + name)
+            new_image = image.copy()
+            for gt_box in gt:
+                box = gt_box.bndbox
+                cls = label_map[gt_box.label]
+                print gt_box.label, cls
+                draw_util.draw_bounding_box_on_image(new_image,  box, cls, color='red', thickness=2, 
+                                                     with_text=True, normalized=False, used_category_index=category_index)
+            # draw_onepict(args, [], gt, args.image_folder + name, name)
+            new_image.save(args.output_folder + name)
+        else:
+            det = det_dict[name]
+            if exist_badcase(det) == 1 or exist_miss(gt) == 1: # only show the pic that has badcase
+                image = Image.open(args.folder + args.image_folder + name)
+                new_image = image.copy()
+                for det_box in det:
+                    box = det_box.bndbox
+                    cls = label_map[det_box.label]
+                    print 'det', box, cls
+                    if det_box.evaluate == 0:
+                        color = 'green' # correct
+                    elif det_box.evaluate == 1:
+                        color = 'yellow' # classify error
+                    elif det_box.evaluate == 2:
+                        color = 'blue' # localize error
+                    elif det_box.evaluate == 3:
+                        color = 'violet' # BG
+                        print('color violet in ' + name)
+                    draw_util.draw_bounding_box_on_image(new_image,  box, cls, color=color, thickness=2, with_text=True, normalized=False, used_category_index=category_index)
+                # draw_onepict(args, det, gt, args.image_folder + name, name)
+                #new_image.save(args.folder + args.output_folder + name)
+                new_image.save(args.output_folder + name.split(',')[0] + '_mr-152x-ex-no-test-aug.jpg')
+
+                gt_image = image.copy()
+                for gt_box in gt:
+                    box = gt_box.bndbox
+                    cls = label_map[gt_box.label]
+                    draw_util.draw_bounding_box_on_image(gt_image,  box, cls, color='red', thickness=2, with_text=True, normalized=False, used_category_index=category_index)
+                # draw_onepict(args, [], gt, args.image_folder + name, name)
+                gt_image.save(args.output_folder + name.split('.')[0] + '_gt.jpg')
+
+def log_errorType(score_thrs, iou_rng):
+    total, all_cat_ratio, all_cat_ratio_wto_scale, _ = summarize_errorType(score_thrs, iou_rng)
     ratio = {}
     ratio["dt_count"] = float(total["dt_count"])
     ratio["correct"] = total["correct"] / total["dt_count"]
@@ -256,7 +322,7 @@ def summarize_errorType(score_thrs, iou_rng):
     
     print("=============== sorted wt.o scale ==================")
     all_cat_ratio_wto_scale_sorted = sorted(all_cat_ratio_wto_scale, key=itemgetter(2))
-    for item in all_cat_ratio_wto_scale:
+    for item in all_cat_ratio_wto_scale_sorted:
         print("{:16}\t{:16}\t{:16}\t{:16}\t{:16}\t{:16}".
             format(item[0], item[1], item[2], item[3], item[4], item[5]))
     print("============================================")
@@ -359,7 +425,7 @@ if __name__ == "__main__":
     #summarize_cat_iou()
 
     for score_thrs in [0.01, 0.5, 0.7]:
-        summarize_errorType(score_thrs, [0.1, 0.5])
+        log_errorType(score_thrs, [0.1, 0.5])
 
     #count_cat_gtbbox()
 
