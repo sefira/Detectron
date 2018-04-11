@@ -32,29 +32,22 @@ import modeling.FPN as FPN
 import utils.blob as blob_utils
 import utils.boxes as box_utils
 
-# Lowest and highest pyramid levels in the backbone network. For FPN, we assume
-# that all networks have 5 spatial reductions, each by a factor of 2. Level 1
-# would correspond to the input image, hence it does not make sense to use it.
-LOWEST_BACKBONE_LVL = 2   # E.g., "conv2"-like level
-HIGHEST_BACKBONE_LVL = 5  # E.g., "conv5"-like level
-
-
 # ---------------------------------------------------------------------------- #
 # PAN with FPN with ResNet
 # ------------------------------------------------------------ #
 
-def add_pan_fpn_ResNet50_conv5_body(model):
-    return add_pan_onto_fpn_body(
+def add_pan_roi_fpn_ResNet50_conv5_head(model):
+    return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet50_conv5_body, pan_level_info_ResNet50_conv5
     )
 
-def add_pan_fpn_ResNet101_conv5_body(model):
-    return add_pan_onto_fpn_body(
+def add_pan_roi_fpn_ResNet101_conv5_head(model):
+    return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet101_conv5_body, pan_level_info_ResNet101_conv5
     )
 
-def add_pan_fpn_ResNet152_conv5_body(model):
-    return add_pan_onto_fpn_body(
+def add_pan_roi_fpn_ResNet152_conv5_head(model):
+    return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet152_conv5_body, pan_level_info_ResNet152_conv5
     )
 
@@ -62,25 +55,49 @@ def add_pan_fpn_ResNet152_conv5_body(model):
 # Functions for bolting PAN onto a FPN backbone architectures
 # ---------------------------------------------------------------------------- #
 
-def add_pan_onto_fpn_body(
+def add_pan_head_onto_fpn_body(
     model, fpn_body_func, pan_level_info_func
 ):
     """Add the specified conv body to the model and then add FPN levels to it.
     Then add PAN levels to it.
+    And fuse these PAN levels using max or sum according cfg
     """
-    # Note: blobs_conv is in revsersed order: [fpn5, fpn4, fpn3, fpn2]
-    # similarly for dims_conv: [2048, 1024, 512, 256]
-    # similarly for spatial_scales_fpn: [1/32, 1/16, 1/8, 1/4]
+    # Note: blobs_conv is in order: [pan_2, pan_3, pan_4, pan_5]
+    # similarly for dims_conv: [256, 256, 256, 256]
+    # similarly for spatial_scales_pan: [1/4, 1/8, 1/16, 1/32]
 
     fpn_body_func(model)
-    blobs_fpn, dim_fpn, spatial_scales_fpn = add_pan(
+    blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
         model, pan_level_info_func()
+    )
+    blobs_adptive_pooling, dim_pooling = add_adaptive_pooling_fast_rcnn_2mlp_head(
+        model, blobs_pan, dim_pan, spatial_scales_pan
     )
 
     return blobs_pan, dim_pan, spatial_scales_pan
 
+def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_scales_pan):
+    """Fuse all PAN extra lateral level using a adaptive pooling"""
+    # Fusion method is indicated in cfg.PAN.FUSION_METHOD
+    hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
+    roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
+    roi_feat = model.RoIFeatureTransform(
+        blob_in,
+        'roi_feat',
+        blob_rois='rois',
+        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+        resolution=roi_size,
+        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scale
+    )
+    model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.Relu('fc6', 'fc6')
+    model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+    model.Relu('fc7', 'fc7')
+    return 'fc7', hidden_dim
 
-def add_pan(model, pan_level_info):
+
+def add_pan_bottom_up_path_lateral(model, pan_level_info):
     """Add PAN connections based on the model described in the PAN paper."""
     # PAN levels are built starting from the finest level of the FPN.
     # First we recurisvely constructing higher resolution FPN levels. 
@@ -164,14 +181,14 @@ def add_bottomup_lateral_module(
 # PAN level info for stages 5, 4, 3, 2 for select models (more can be added)
 # ---------------------------------------------------------------------------- #
 
-FpnLevelInfo = collections.namedtuple(
-    'FpnLevelInfo',
+PanLevelInfo = collections.namedtuple(
+    'PanLevelInfo',
     ['blobs', 'dims', 'spatial_scales']
 )
 
 
-def fpn_level_info_ResNet50_conv5():
-    return FpnLevelInfo(
+def pan_level_info_ResNet50_conv5():
+    return PanLevelInfo(
         #blobs=('res5_2_sum', 'res4_5_sum', 'res3_3_sum', 'res2_2_sum'),
         blobs=('fpn_res2_2_sum', 'fpn_res3_3_sum', 'fpn_res4_5_sum', 'fpn_res5_2_sum'),
         #dims=(2048, 1024, 512, 256),
@@ -181,8 +198,8 @@ def fpn_level_info_ResNet50_conv5():
     )
 
 
-def fpn_level_info_ResNet101_conv5():
-    return FpnLevelInfo(
+def pan_level_info_ResNet101_conv5():
+    return PanLevelInfo(
         #blobs=('res5_2_sum', 'res4_22_sum', 'res3_3_sum', 'res2_2_sum'),
         blobs=('fpn_res2_2_sum', 'fpn_res3_3_sum', 'fpn_res4_22_sum', 'fpn_res5_2_sum'),
         #dims=(2048, 1024, 512, 256),
@@ -192,8 +209,8 @@ def fpn_level_info_ResNet101_conv5():
     )
 
 
-def fpn_level_info_ResNet152_conv5():
-    return FpnLevelInfo(
+def pan_level_info_ResNet152_conv5():
+    return PanLevelInfo(
         #blobs=('res5_2_sum', 'res4_35_sum', 'res3_7_sum', 'res2_2_sum'),
         blobs=('fpn_res2_2_sum', 'fpn_res3_7_sum', 'fpn_res4_35_sum', 'fpn_res5_2_sum'),
         #dims=(2048, 1024, 512, 256),
