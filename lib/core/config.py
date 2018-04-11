@@ -718,8 +718,8 @@ __C.PAN = AttrDict()
 
 # PAN is enabled if True
 #
-# When PAN_ON = True, FPN_ON should be True,
-# But PAN_ON should restraint FPN_ON like if FPN_ON and not PAN_ON
+# If PAN_ON = True, FPN_ON should be True,
+# But PAN_ON should restraint FPN_ON in ROIPooling like: if FPN_ON and not PAN_ON
 # TODO: think twice to design
 __C.PAN.PAN_ON = False
 

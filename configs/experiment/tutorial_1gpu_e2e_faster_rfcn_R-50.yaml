@@ -1,0 +1,41 @@
+MODEL:
+  TYPE: rfcn
+  CONV_BODY: ResNet.add_ResNet50_conv5_body
+  NUM_CLASSES: 81
+NUM_GPUS: 1
+SOLVER:
+  WEIGHT_DECAY: 0.0001
+  LR_POLICY: steps_with_decay
+  BASE_LR: 0.01
+  GAMMA: 0.1
+  MAX_ITER: 90000
+  STEPS: [0, 60000, 80000]
+FPN:
+  FPN_ON: True
+  MULTILEVEL_RPN: True
+  RPN_MAX_LEVEL: 7
+  RPN_MIN_LEVEL: 3
+  COARSEST_STRIDE: 128
+  EXTRA_CONV_LEVELS: True
+RESNETS:
+  STRIDE_1X1: False  # default True for MSRA; False for C2 or Torch models
+  TRANS_FUNC: bottleneck_transformation
+  NUM_GROUPS: 32
+  WIDTH_PER_GROUP: 8
+RFCN:
+  PS_GRID_SIZE : 3
+TRAIN:
+  WEIGHTS: /home/vis/buxingyuan/detection/detectron/model/R-50.pkl
+  DATASETS: ('coco_2014_train',)
+  SCALES: (500,)
+  MAX_SIZE: 833
+  BATCH_SIZE_PER_IM: 256
+  RPN_PRE_NMS_TOP_N: 2000  # Per FPN level
+TEST:
+  DATASETS: ('coco_2014_minival',)
+  SCALE: 500
+  MAX_SIZE: 833
+  NMS: 0.5
+  RPN_PRE_NMS_TOP_N: 1000  # Per FPN level
+  RPN_POST_NMS_TOP_N: 1000
+OUTPUT_DIR: .
