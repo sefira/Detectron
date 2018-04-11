@@ -721,6 +721,7 @@ __C.PAN = AttrDict()
 # If PAN_ON = True, FPN_ON should be True,
 # But PAN_ON should restraint FPN_ON in ROIPooling like: if FPN_ON and not PAN_ON
 # TODO: think twice to design
+# rely on FPN.ROI_MAX_LEVEL, FPN.ROI_MIN_LEVEL
 __C.PAN.PAN_ON = False
 
 # Channel dimension of the FPN feature levels
@@ -729,7 +730,6 @@ __C.PAN.DIM = 256
 # Fusion method
 # Include Max and Sum and Mean
 __C.PAN.FUSION_METHOD = b'Max'
-
 
 # ---------------------------------------------------------------------------- #
 # Mask R-CNN options ("MRCNN" means Mask R-CNN)

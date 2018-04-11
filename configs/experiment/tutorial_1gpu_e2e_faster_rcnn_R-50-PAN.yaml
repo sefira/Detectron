@@ -15,6 +15,10 @@ FPN:
   FPN_ON: True
   MULTILEVEL_ROIS: True
   MULTILEVEL_RPN: True
+PAN:
+  PAN_ON: True
+  DIM: 256
+  FUSION_METHOD: Max
 FAST_RCNN:
   ROI_BOX_HEAD: PAN.add_pan_roi_fpn_ResNet50_conv5_head
   ROI_XFORM_METHOD: RoIAlign

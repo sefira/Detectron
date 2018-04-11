@@ -261,6 +261,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
                 bl_out_list = []
+                print(blobs_in)
+                print(range(k_min,k_max + 1))
                 for lvl in range(k_min, k_max + 1):
                     bl_in = blobs_in[k_max - lvl]  # blobs_in is in reversed order
                     sc = spatial_scale[k_max - lvl]  # in reversed order
@@ -268,6 +270,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     bl_out = blob_out + '_fpn' + str(lvl)
                     bl_out_list.append(bl_out)
                     bl_argmax = ['_argmax_' + bl_out] if has_argmax else []
+                    print([bl_in,bl_rois])
+                    print([bl_out] + bl_argmax)
                     self.net.__getattr__(method)(
                         [bl_in, bl_rois], [bl_out] + bl_argmax,
                         pooled_w=resolution,
@@ -293,13 +297,17 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
                 bl_out_list = []
+                print(blobs_in)
+                print(range(k_min, k_max + 1))
                 for lvl in range(k_min, k_max + 1):
-                    bl_in = blobs_in[k_max - lvl]  # blobs_in is in reversed order
-                    sc = spatial_scale[k_max - lvl]  # in reversed order
-                    bl_rois = blob_rois + '_pan' + str(lvl)
+                    bl_in = blobs_in[lvl - k_min] 
+                    sc = spatial_scale[lvl - k_min]
+                    bl_rois = blob_rois + '_fpn' + str(lvl)
                     bl_out = blob_out + '_pan' + str(lvl)
                     bl_out_list.append(bl_out)
                     bl_argmax = ['_argmax_' + bl_out] if has_argmax else []
+                    print([bl_in,bl_rois])
+                    print([bl_out] + bl_argmax)
                     self.net.__getattr__(method)(
                         [bl_in, bl_rois], [bl_out] + bl_argmax,
                         pooled_w=resolution,
@@ -307,13 +315,26 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                         spatial_scale=sc,
                         sampling_ratio=sampling_ratio
                     )
+                # The pooled features from all levels are concatenated along the
+                # batch dimension into a single 4D tensor.
+                xform_shuffled, _ = self.net.Concat(
+                        bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
+                        axis=0
+                        )
+                # Unshuffle to match rois from dataloader
+                restore_bl = blob_rois + '_idx_restore_int32'
+                xform_out = self.net.BatchPermutation(
+                        [xform_shuffled, restore_bl], blob_out
+                        )
+
                 # The pooled features from all levels are fused
-                fusion_method = cfg.PAN.FUSION_METHOD
-                assert fusion_method in {'Sum', 'Max', 'Mean'}, \
-                    'Unknown fusion method: {}'.format(method)
-                xform_out = self.net.__getattr__(method)(
-                    bl_out_list, blob_out
-                )
+                #fusion_method = cfg.PAN.FUSION_METHOD
+                #print(bl_out_list)
+                #assert fusion_method in {'Sum', 'Max', 'Mean'}, \
+                #    'Unknown fusion method: {}'.format(method)
+                #xform_out = self.net.__getattr__(method)(
+                #    bl_out_list, blob_out
+                #)
         else:
             # Single feature level
             bl_argmax = ['_argmax_' + blob_out] if has_argmax else []

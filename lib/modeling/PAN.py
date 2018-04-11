@@ -36,17 +36,17 @@ import utils.boxes as box_utils
 # PAN with FPN with ResNet
 # ------------------------------------------------------------ #
 
-def add_pan_roi_fpn_ResNet50_conv5_head(model):
+def add_pan_roi_fpn_ResNet50_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet50_conv5_body, pan_level_info_ResNet50_conv5
     )
 
-def add_pan_roi_fpn_ResNet101_conv5_head(model):
+def add_pan_roi_fpn_ResNet101_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet101_conv5_body, pan_level_info_ResNet101_conv5
     )
 
-def add_pan_roi_fpn_ResNet152_conv5_head(model):
+def add_pan_roi_fpn_ResNet152_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
         model, FPN.add_fpn_ResNet152_conv5_body, pan_level_info_ResNet152_conv5
     )
@@ -66,9 +66,9 @@ def add_pan_head_onto_fpn_body(
     # similarly for dims_conv: [256, 256, 256, 256]
     # similarly for spatial_scales_pan: [1/4, 1/8, 1/16, 1/32]
 
-    fpn_body_func(model)
+    blobs_fpn, dim_fpn, spatial_scales_fpn = fpn_body_func(model)
     blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
-        model, pan_level_info_func()
+        model, pan_level_info_func(), blobs_fpn
     )
     blobs_out, dim_out = add_adaptive_pooling_fast_rcnn_2mlp_head(
         model, blobs_pan, dim_pan, spatial_scales_pan
@@ -97,7 +97,7 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
     return 'fc7', hidden_dim
 
 
-def add_pan_bottom_up_path_lateral(model, pan_level_info):
+def add_pan_bottom_up_path_lateral(model, pan_level_info, blobs_fpn):
     """Add PAN connections based on the model described in the PAN paper."""
     # PAN levels are built starting from the finest level of the FPN.
     # First we recurisvely constructing higher resolution FPN levels. 
@@ -137,6 +137,8 @@ def add_pan_bottom_up_path_lateral(model, pan_level_info):
     # Post-hoc scale-specific 3x3 convs, exclude N2
     blobs_pan = []
     spatial_scales = []
+    blobs_pan += [blobs_fpn[-1]]
+    spatial_scales += [pan_level_info.spatial_scales[0]]
     for i in range(1, num_backbone_stages):
         pan_blob = model.Conv(
             output_blobs[i],
@@ -161,6 +163,7 @@ def add_bottomup_lateral_module(
 ):
     """Add a buttom-up lateral module."""
     # Buttom-up 3x3 conv
+    xavier_fill = ('XavierFill', {})
     bu = model.Conv(
         pan_buttom_input,
         pan_up_output + '_bu',
