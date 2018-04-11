@@ -78,7 +78,7 @@ def im_list_to_blob(ims):
         ims = [ims]
     max_shape = np.array([im.shape for im in ims]).max(axis=0)
     # Pad the image so they can be divisible by a stride
-    if cfg.FPN.FPN_ON:
+    if cfg.FPN.FPN_ON: # no need of restraint of PAN_ON
         stride = float(cfg.FPN.COARSEST_STRIDE)
         max_shape[0] = int(np.ceil(max_shape[0] / stride) * stride)
         max_shape[1] = int(np.ceil(max_shape[1] / stride) * stride)

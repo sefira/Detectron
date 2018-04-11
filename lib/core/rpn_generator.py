@@ -215,7 +215,7 @@ def im_proposals(model, im):
         workspace.FeedBlob(core.ScopedName(k), v.astype(np.float32, copy=False))
     workspace.RunNet(model.net.Proto().name)
 
-    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
+    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN: # no need of restraint of PAN_ON
         k_max = cfg.FPN.RPN_MAX_LEVEL
         k_min = cfg.FPN.RPN_MIN_LEVEL
         rois_names = [

@@ -70,11 +70,11 @@ def add_pan_head_onto_fpn_body(
     blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
         model, pan_level_info_func()
     )
-    blobs_adptive_pooling, dim_pooling = add_adaptive_pooling_fast_rcnn_2mlp_head(
+    blobs_out, dim_out = add_adaptive_pooling_fast_rcnn_2mlp_head(
         model, blobs_pan, dim_pan, spatial_scales_pan
     )
 
-    return blobs_pan, dim_pan, spatial_scales_pan
+    return blobs_out, dim_out
 
 def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
@@ -82,15 +82,15 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
     roi_feat = model.RoIFeatureTransform(
-        blob_in,
+        blobs_pan,
         'roi_feat',
         blob_rois='rois',
         method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
         resolution=roi_size,
         sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
-        spatial_scale=spatial_scale
+        spatial_scale=spatial_scales_pan
     )
-    model.FC(roi_feat, 'fc6', dim_in * roi_size * roi_size, hidden_dim)
+    model.FC(roi_feat, 'fc6', dim_pan * roi_size * roi_size, hidden_dim)
     model.Relu('fc6', 'fc6')
     model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
     model.Relu('fc7', 'fc7')

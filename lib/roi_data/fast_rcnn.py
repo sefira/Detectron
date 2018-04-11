@@ -84,7 +84,7 @@ def get_fast_rcnn_blob_names(is_training=True):
         # 'keypoint_loss_normalizer': optional normalization factor to use if
         # cfg.KRCNN.NORMALIZE_BY_VISIBLE_KEYPOINTS is False.
         blob_names += ['keypoint_loss_normalizer']
-    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS:
+    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS and not cfg.PAN.PAN_ON:
         # Support for FPN multi-level rois without bbox reg isn't
         # implemented (... and may never be implemented)
         k_max = cfg.FPN.ROI_MAX_LEVEL
@@ -117,7 +117,7 @@ def add_fast_rcnn_blobs(blobs, im_scales, roidb):
         if isinstance(v, list) and len(v) > 0:
             blobs[k] = np.concatenate(v)
     # Add FPN multilevel training RoIs, if configured
-    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS:
+    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_ROIS and not cfg.PAN.PAN_ON:
         _add_multilevel_rois(blobs)
 
     # Perform any final work and validity checks after the collating blobs for

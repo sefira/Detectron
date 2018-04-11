@@ -711,6 +711,27 @@ __C.FPN.EXTRA_CONV_LEVELS = False
 
 
 # ---------------------------------------------------------------------------- #
+# PAN options
+# PAN is used for just object detection, not for RPN
+# ---------------------------------------------------------------------------- #
+__C.PAN = AttrDict()
+
+# PAN is enabled if True
+#
+# When PAN_ON = True, FPN_ON should be True,
+# But PAN_ON should restraint FPN_ON like if FPN_ON and not PAN_ON
+# TODO: think twice to design
+__C.PAN.PAN_ON = False
+
+# Channel dimension of the FPN feature levels
+__C.PAN.DIM = 256
+
+# Fusion method
+# Include Max and Sum and Mean
+__C.PAN.FUSION_METHOD = b'Max'
+
+
+# ---------------------------------------------------------------------------- #
 # Mask R-CNN options ("MRCNN" means Mask R-CNN)
 # ---------------------------------------------------------------------------- #
 __C.MRCNN = AttrDict()

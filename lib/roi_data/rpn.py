@@ -39,7 +39,7 @@ def get_rpn_blob_names(is_training=True):
     if is_training:
         # gt boxes: (batch_idx, x1, y1, x2, y2, cls)
         blob_names += ['roidb']
-        if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
+        if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN: # no need of restraint of PAN_ON
             # Same format as RPN blobs, but one per FPN level
             for lvl in range(cfg.FPN.RPN_MIN_LEVEL, cfg.FPN.RPN_MAX_LEVEL + 1):
                 blob_names += [
@@ -61,7 +61,7 @@ def get_rpn_blob_names(is_training=True):
 
 def add_rpn_blobs(blobs, im_scales, roidb):
     """Add blobs needed training RPN-only and end-to-end Faster R-CNN models."""
-    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
+    if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN: # no need of restraint of PAN_ON
         # RPN applied to many feature levels, as in the FPN paper
         k_max = cfg.FPN.RPN_MAX_LEVEL
         k_min = cfg.FPN.RPN_MIN_LEVEL
@@ -99,7 +99,7 @@ def add_rpn_blobs(blobs, im_scales, roidb):
         blobs['im_info'].append(im_info)
 
         # Add RPN targets
-        if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN:
+        if cfg.FPN.FPN_ON and cfg.FPN.MULTILEVEL_RPN: # no need of restraint of PAN_ON
             # RPN applied to many feature levels, as in the FPN paper
             rpn_blobs = _get_rpn_blobs(
                 im_height, im_width, foas, all_anchors, gt_rois
