@@ -368,8 +368,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
                 bl_out_list = []
-                print(blobs_in)
-                print(range(k_min,k_max + 1))
                 for lvl in range(k_min, k_max + 1):
                     bl_in = blobs_in[k_max - lvl]  # blobs_in is in reversed order
                     sc = spatial_scale[k_max - lvl]  # in reversed order
@@ -377,8 +375,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     bl_out = blob_out + '_fpn' + str(lvl)
                     bl_out_list.append(bl_out)
                     bl_argmax = ['_argmax_' + bl_out] if has_argmax else []
-                    print([bl_in,bl_rois])
-                    print([bl_out] + bl_argmax)
                     self.net.__getattr__(method)(
                         [bl_in, bl_rois], [bl_out] + bl_argmax,
                         pooled_w=resolution,
@@ -408,8 +404,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
                 bl_out_list = []
-                print(blobs_in)
-                print(range(k_min, k_max + 1))
                 for lvl in range(k_min, k_max + 1):
                     bl_in = blobs_in[lvl - k_min] 
                     sc = spatial_scale[lvl - k_min]
@@ -417,8 +411,6 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     bl_out = blob_out + '_pan' + str(lvl)
                     bl_out_list.append(bl_out)
                     bl_argmax = ['_argmax_' + bl_out] if has_argmax else []
-                    print([bl_in,bl_rois])
-                    print([bl_out] + bl_argmax)
                     self.net.__getattr__(method)(
                         [bl_in, bl_rois], [bl_out] + bl_argmax,
                         pooled_w=resolution,

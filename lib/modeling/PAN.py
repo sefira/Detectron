@@ -38,17 +38,17 @@ import utils.boxes as box_utils
 
 def add_pan_roi_fpn_ResNet50_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
-        model, FPN.add_fpn_ResNet50_conv5_body, pan_level_info_ResNet50_conv5
+        model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet50_conv5
     )
 
 def add_pan_roi_fpn_ResNet101_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
-        model, FPN.add_fpn_ResNet101_conv5_body, pan_level_info_ResNet101_conv5
+        model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet101_conv5
     )
 
 def add_pan_roi_fpn_ResNet152_conv5_head(model, blob_in, dim_in, spatial_scale):
     return add_pan_head_onto_fpn_body(
-        model, FPN.add_fpn_ResNet152_conv5_body, pan_level_info_ResNet152_conv5
+        model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet152_conv5
     )
 
 # ---------------------------------------------------------------------------- #
@@ -56,7 +56,7 @@ def add_pan_roi_fpn_ResNet152_conv5_head(model, blob_in, dim_in, spatial_scale):
 # ---------------------------------------------------------------------------- #
 
 def add_pan_head_onto_fpn_body(
-    model, fpn_body_func, pan_level_info_func
+    model, blobs_fpn, dim_fpn, spatial_scales_fpn, pan_level_info_func
 ):
     """Add the specified conv body to the model and then add FPN levels to it.
     Then add PAN levels to it.
@@ -66,7 +66,6 @@ def add_pan_head_onto_fpn_body(
     # similarly for dims_conv: [256, 256, 256, 256]
     # similarly for spatial_scales_pan: [1/4, 1/8, 1/16, 1/32]
 
-    blobs_fpn, dim_fpn, spatial_scales_fpn = fpn_body_func(model)
     blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
         model, pan_level_info_func(), blobs_fpn
     )
@@ -90,7 +89,7 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
         resized = model.net.UpsampleNearest(
             blobs_pan[i],
             blobs_pan[i] + '_reszied',
-            scale=int(spatial_scales_pan[0] / spatial_scales_pan[i+1])
+            scale=int(spatial_scales_pan[0] / spatial_scales_pan[i])
         )
         resized_pan_stages += [resized]
         spatial_scales += [spatial_scales_pan[0]]
@@ -103,7 +102,7 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
     fusion_method = cfg.PAN.FUSION_METHOD
     assert fusion_method in {'Sum', 'Max', 'Mean'}, \
         'Unknown fusion method: {}'.format(fusion_method)
-    pan_adaptive_pooling = self.net.__getattr__(fusion_method)(
+    pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
         resized_pan_stages, "pan_adaptive_pooling"
     )
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
