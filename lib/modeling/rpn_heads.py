@@ -35,13 +35,16 @@ def add_generic_rpn_outputs(model, blob_in, dim_in, spatial_scale_in):
     to an RPN model. Abstracts away the use of FPN.
     """
     loss_gradients = None
-    if cfg.FPN.FPN_ON: # no need of restraint of PAN_ON
+    if cfg.FPN.FPN_ON: # add PAN_ON below
         # Delegate to the FPN module
         FPN.add_fpn_rpn_outputs(model, blob_in, dim_in, spatial_scale_in)
         if cfg.MODEL.FASTER_RCNN:
             # CollectAndDistributeFpnRpnProposals also labels proposals when in
             # training mode
-            model.CollectAndDistributeFpnRpnProposals()
+            if cfg.PAN.PAN_ON:
+                model.CollectAndDistributeFpnRpnProposalsIntoPAN()
+            else:
+                model.CollectAndDistributeFpnRpnProposals()
         if model.train:
             loss_gradients = FPN.add_fpn_rpn_losses(model)
     else:

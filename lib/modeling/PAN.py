@@ -95,8 +95,8 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
         resized_pan_stages += [resized]
         spatial_scales += [spatial_scales_pan[0]]
 
-    # Fusion all resized stages directly, the apply RoIPooling in detector.py
-    # TODO(buxingyuan): Think Twice, it seems equipollent to
+    # Fusion all resized stages directly, the apply RoIPooling defined in detector.py
+    # TODO(buxingyuan): Think Twice, it seems equipollent to original Adaptive Pooling:
     # [1. Distribute RoI into different level
     # 2. RoIPooling in different level
     # 3. adaptive fusion all level featue]
