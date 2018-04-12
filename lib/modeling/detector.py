@@ -192,6 +192,55 @@ class DetectionModelHelper(cnn.CNNModelHelper):
           - rois_idx_restore is a permutation on the concatenation of all
             rois_fpn<i>, i=min...max, such that when applied the RPN RoIs are
             restored to their original order in the input blobs.
+        blobs_in:
+            [BlobReference("gpu_0/rpn_rois_fpn2"),
+            BlobReference("gpu_0/rpn_rois_fpn3"),
+            BlobReference("gpu_0/rpn_rois_fpn4"),
+            BlobReference("gpu_0/rpn_rois_fpn5"),
+            BlobReference("gpu_0/rpn_rois_fpn6"),
+            BlobReference("gpu_0/rpn_roi_probs_fpn2"),
+            BlobReference("gpu_0/rpn_roi_probs_fpn3"),
+            BlobReference("gpu_0/rpn_roi_probs_fpn4"),
+            BlobReference("gpu_0/rpn_roi_probs_fpn5"),
+            BlobReference("gpu_0/rpn_roi_probs_fpn6"),
+            BlobReference("gpu_0/roidb"),
+            BlobReference("gpu_0/im_info")]
+        blobs_out:
+            [BlobReference("gpu_0/rois"),
+            BlobReference("gpu_0/labels_int32"),
+            BlobReference("gpu_0/bbox_targets"),
+            BlobReference("gpu_0/bbox_inside_weights"),
+            BlobReference("gpu_0/bbox_outside_weights"),
+            BlobReference("gpu_0/rois_fpn2"),
+            BlobReference("gpu_0/rois_fpn3"),
+            BlobReference("gpu_0/rois_fpn4"),
+            BlobReference("gpu_0/rois_fpn5"),
+            BlobReference("gpu_0/rois_idx_restore_int32")]
+        name:
+            CollectAndDistributeFpnRpnProposalsOp:
+            gpu_0/rpn_rois_fpn2,
+            gpu_0/rpn_rois_fpn3,
+            gpu_0/rpn_rois_fpn4,
+            gpu_0/rpn_rois_fpn5,
+            gpu_0/rpn_rois_fpn6,
+            gpu_0/rpn_roi_probs_fpn2,
+            gpu_0/rpn_roi_probs_fpn3,
+            gpu_0/rpn_roi_probs_fpn4,
+            gpu_0/rpn_roi_probs_fpn5,
+            gpu_0/rpn_roi_probs_fpn6,
+            gpu_0/roidb,
+            gpu_0/im_info
+        outputs:
+            (BlobReference("gpu_0/rois"),
+            BlobReference("gpu_0/labels_int32"),
+            BlobReference("gpu_0/bbox_targets"),
+            BlobReference("gpu_0/bbox_inside_weights"),
+            BlobReference("gpu_0/bbox_outside_weights"),
+            BlobReference("gpu_0/rois_fpn2"),
+            BlobReference("gpu_0/rois_fpn3"),
+            BlobReference("gpu_0/rois_fpn4"),
+            BlobReference("gpu_0/rois_fpn5"),
+            BlobReference("gpu_0/rois_idx_restore_int32"))
 
         If used during training, then the output blobs will also include:
           [labels, bbox_targets, bbox_inside_weights, bbox_outside_weights].
@@ -291,6 +340,10 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     [xform_shuffled, restore_bl], blob_out
                 )
             if cfg.PAN.PAN_ON:
+                # ---------------------------------------------------------------------------- #
+                # ******************************* DEPRECATED ********************************* #
+                # ******** MOVED INTO PAN.py add_adaptive_pooling_fast_rcnn_2mlp_head ******** #
+                # ---------------------------------------------------------------------------- #
                 # PAN case: add RoIFeatureTransform to each PAN level
                 # Then fuse according to cfg.PAN.FUSION_METHOD
                 k_max = cfg.FPN.ROI_MAX_LEVEL  # coarsest level of pyramid
@@ -331,8 +384,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 #fusion_method = cfg.PAN.FUSION_METHOD
                 #print(bl_out_list)
                 #assert fusion_method in {'Sum', 'Max', 'Mean'}, \
-                #    'Unknown fusion method: {}'.format(method)
-                #xform_out = self.net.__getattr__(method)(
+                #    'Unknown fusion method: {}'.format(fusion_method)
+                #xform_out = self.net.__getattr__(fusion_method)(
                 #    bl_out_list, blob_out
                 #)
         else:
