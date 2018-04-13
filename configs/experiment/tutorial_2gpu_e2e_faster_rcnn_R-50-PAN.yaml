@@ -18,7 +18,7 @@ FPN:
 PAN:
   PAN_ON: True
   DIM: 256
-  FUSION_METHOD: Max
+  FUSION_METHOD: Sum
 FAST_RCNN:
   ROI_BOX_HEAD: PAN.add_pan_roi_fpn_ResNet50_conv5_head
   ROI_XFORM_METHOD: RoIAlign

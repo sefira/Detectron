@@ -143,50 +143,56 @@ def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_
 def add_pan_bottom_up_path_lateral(model, pan_level_info, blobs_fpn):
     """Add PAN connections based on the model described in the PAN paper."""
     # PAN levels are built starting from the finest level of the FPN.
-    # First we recurisvely constructing higher resolution FPN levels. 
+    # First we recurisvely constructing higher resolution FPN levels.
     # In details:
     # N2 = P2, 
-    # N3 = Conv(Conv(N2, 3x3, s=2) + P3, 3x3, s=1) 
-    # ...
-    # N5 = ...
+    # N3 = Conv(Conv(N2, 3x3, s=2) + P3, 3x3, s=1)
+    # N4 = Conv(Conv(N3, 3x3, s=2) + P4, 3x3, s=1)
+    # N5 = Conv(Conv(N4, 3x3, s=2) + P5, 3x3, s=1)
     # It seems there is no higher level than N5 (i.e. P5) in PAN
-    pan_dim = cfg.PAN.DIM    
+    pan_dim = cfg.PAN.DIM
+    xavier_fill = ('XavierFill', {})
     num_backbone_stages = (
         len(pan_level_info.blobs)# - (min_level - LOWEST_BACKBONE_LVL)
     )
 
-    lateral_input_blobs = pan_level_info.blobs
-    output_blobs = [
-        'pan_inner_{}'.format(s)
+    fpn_input_blobs = pan_level_info.blobs
+    pan_blobs = [
+        'pan_{}'.format(s)
         for s in pan_level_info.blobs
     ]
+    spatial_scales = [
+        sp
+        for sp in pan_level_info.spatial_scales
+    ]
     pan_dim_lateral = pan_level_info.dims
-    xavier_fill = ('XavierFill', {})
 
     # For the finest FPN level: N2 = P2 only seeds recursion
-    output_blobs[0] = lateral_input_blobs[0]
+    pan_blobs[0] = pan_level_info.blobs[0]
 
-    # For other levels add bottom-up and lateral connections
+    # For other levels add bottom-up path
     for i in range(num_backbone_stages - 1):
-        add_bottomup_lateral_module(
-            model,
-            output_blobs[i],             # bottom-up blob
-            lateral_input_blobs[i + 1],  # lateral blob
-            output_blobs[i + 1],         # next output blob
-            pan_dim,                     # output dimension
-            pan_dim_lateral[i + 1]       # lateral input dimension
-        )
-
-    # Post-hoc scale-specific 3x3 convs, exclude N2
-    blobs_pan = []
-    spatial_scales = []
-    blobs_pan += [blobs_fpn[-1]]
-    spatial_scales += [pan_level_info.spatial_scales[0]]
-    for i in range(1, num_backbone_stages):
-        pan_blob = model.Conv(
-            output_blobs[i],
-            'pan_{}'.format(pan_level_info.blobs[i]),
+        # Buttom-up 3x3 subsample conv
+        subsample = model.Conv(
+            pan_blobs[i],
+            pan_blobs[i] + '_sub',
             dim_in=pan_dim,
+            dim_out=pan_dim_lateral[i],
+            kernel=3,
+            pad=1,
+            stride=2,
+            weight_init=xavier_fill,
+            bias_init=const_fill(0.0)
+        )
+        model.Relu(subsample, subsample)
+        # Sum lateral and buttom-up subsampled conv
+        model.net.Sum([subsample, fpn_input_blobs[i + 1]], pan_blobs[i] + '_sum')
+
+        # Post-hoc scale-specific 3x3 convs
+        pan_blob = model.Conv(
+            pan_blobs[i] + '_sum',
+            pan_blobs[i + 1],
+            dim_in=pan_dim_lateral[i],
             dim_out=pan_dim,
             kernel=3,
             pad=1,
@@ -195,33 +201,8 @@ def add_pan_bottom_up_path_lateral(model, pan_level_info, blobs_fpn):
             bias_init=const_fill(0.0)
         )
         model.Relu(pan_blob, pan_blob)
-        blobs_pan += [pan_blob]
-        spatial_scales += [pan_level_info.spatial_scales[i]]
 
-    return blobs_pan, pan_dim, spatial_scales
-
-
-def add_bottomup_lateral_module(
-    model, pan_buttom_input, lateral_input, pan_up_output, dim_pan_input, dim_lateral_input
-):
-    """Add a buttom-up lateral module."""
-    # Buttom-up 3x3 conv
-    xavier_fill = ('XavierFill', {})
-    bu = model.Conv(
-        pan_buttom_input,
-        pan_up_output + '_bu',
-        dim_in=dim_pan_input,
-        dim_out=dim_lateral_input,
-        kernel=3,
-        pad=1,
-        stride=2,
-        weight_init=xavier_fill,
-        bias_init=const_fill(0.0)
-    )
-    model.Relu(bu, bu)
-    # Sum lateral and buttom-up
-    model.net.Sum([bu, lateral_input], pan_up_output)
-
+    return pan_blobs, pan_dim, spatial_scales
 
 # ---------------------------------------------------------------------------- #
 # PAN level info for stages 5, 4, 3, 2 for select models (more can be added)
