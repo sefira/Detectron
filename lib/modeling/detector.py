@@ -399,7 +399,8 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 # ******** MOVED INTO PAN.py add_adaptive_pooling_fast_rcnn_2mlp_head ******** #
                 # ---------------------------------------------------------------------------- #
                 # PAN case: add RoIFeatureTransform to each PAN level
-                # Then fuse according to cfg.PAN.FUSION_METHOD
+                # this is just for the bottom-up config, while adaptive pooling config directly
+                #  use the Single feature level RoIFeatureTransform
                 k_max = cfg.FPN.ROI_MAX_LEVEL  # coarsest level of pyramid
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
@@ -421,23 +422,14 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                 # The pooled features from all levels are concatenated along the
                 # batch dimension into a single 4D tensor.
                 xform_shuffled, _ = self.net.Concat(
-                        bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
-                        axis=0
-                        )
+                    bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
+                    axis=0
+                )
                 # Unshuffle to match rois from dataloader
                 restore_bl = blob_rois + '_idx_restore_int32'
                 xform_out = self.net.BatchPermutation(
-                        [xform_shuffled, restore_bl], blob_out
-                        )
-
-                # The pooled features from all levels are fused
-                #fusion_method = cfg.PAN.FUSION_METHOD
-                #print(bl_out_list)
-                #assert fusion_method in {'Sum', 'Max', 'Mean'}, \
-                #    'Unknown fusion method: {}'.format(fusion_method)
-                #xform_out = self.net.__getattr__(fusion_method)(
-                #    bl_out_list, blob_out
-                #)
+                    [xform_shuffled, restore_bl], blob_out
+                )
         else:
             # Single feature level
             bl_argmax = ['_argmax_' + blob_out] if has_argmax else []
