@@ -65,79 +65,97 @@ def add_pan_head_onto_fpn_body(
     # Note: blobs_conv is in order: [pan_2, pan_3, pan_4, pan_5]
     # similarly for dims_conv: [256, 256, 256, 256]
     # similarly for spatial_scales_pan: [1/4, 1/8, 1/16, 1/32]
+    blobs, dim, spatial_scales = blobs_fpn, dim_fpn, spatial_scales_fpn
 
-    blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
-        model, pan_level_info_func(), blobs_fpn
-    )
-    blobs_out, dim_out = add_adaptive_pooling_fast_rcnn_2mlp_head(
-        model, blobs_pan, dim_pan, spatial_scales_pan
-    )
+    if cfg.PAN.BottomUp_ON:
+        blobs, dim, spatial_scales = add_pan_bottom_up_path_lateral(
+            model, pan_level_info_func(), blobs_fpn
+        )
+
+    if cfg.PAN.AdaptivePooling_ON:
+        blobs_out, dim_out = add_adaptive_pooling_head(
+            model, blobs, dim, spatial_scales
+        )
 
     return blobs_out, dim_out
 
-def add_adaptive_pooling_fast_rcnn_2mlp_head(model, blobs_pan, dim_pan, spatial_scales_pan):
+def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
     # Fusion method is indicated in cfg.PAN.FUSION_METHOD
-    num_backbone_stages = len(blobs_pan)
-    resized_pan_stages = []
-    spatial_scales = []
-    # Keep N2 as it is
-    resized_pan_stages += [blobs_pan[0]]
-    spatial_scales += [spatial_scales_pan[0]]
-    # Resize all other stage into N2 scale
-    for i in range(1, num_backbone_stages):
-        resized = model.net.UpsampleNearest(
-            blobs_pan[i],
-            blobs_pan[i] + '_reszied',
-            scale=int(spatial_scales_pan[0] / spatial_scales_pan[i])
-        )
-        resized_pan_stages += [resized]
-        spatial_scales += [spatial_scales_pan[0]]
-
-    # Fusion all resized stages directly, the apply RoIPooling defined in detector.py
-    # TODO(buxingyuan): Think Twice, it seems equipollent to original Adaptive Pooling:
-    # [1. Distribute RoI into different level
-    # 2. RoIPooling in different level
-    # 3. adaptive fusion all level featue]
     fusion_method = cfg.PAN.FUSION_METHOD
     assert fusion_method in {'Sum', 'Max', 'Mean'}, \
         'Unknown fusion method: {}'.format(fusion_method)
-    pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
-        resized_pan_stages, "pan_adaptive_pooling"
-    )
+    adaptive_pooling_place = cfg.PAN.AdaptivePooling_Place
+    assert adaptive_pooling_place in {'BeforeFC1', 'AfterFC1'}, \
+        'Unknown adaptive pooling place: {}'.format(adaptive_pooling_place)
     hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
     roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
-    roi_feat = model.RoIFeatureTransform(
-        pan_adaptive_pooling,
-        'roi_feat',
-        blob_rois='rois',
-        method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
-        resolution=roi_size,
-        sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
-        spatial_scale=spatial_scales_pan[0]
-    )
-    model.FC(roi_feat, 'fc6', dim_pan * roi_size * roi_size, hidden_dim)
-    model.Relu('fc6', 'fc6')
-    model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
-    model.Relu('fc7', 'fc7')
-    return 'fc7', hidden_dim
 
-    # hidden_dim = cfg.FAST_RCNN.MLP_HEAD_DIM
-    # roi_size = cfg.FAST_RCNN.ROI_XFORM_RESOLUTION
-    # roi_feat = model.RoIFeatureTransform(
-    #     blobs_pan,
-    #     'roi_feat',
-    #     blob_rois='rois',
-    #     method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
-    #     resolution=roi_size,
-    #     sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
-    #     spatial_scale=spatial_scales_pan
-    # )
-    # model.FC(roi_feat, 'fc6', dim_pan * roi_size * roi_size, hidden_dim)
-    # model.Relu('fc6', 'fc6')
-    # model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
-    # model.Relu('fc7', 'fc7')
-    # return 'fc7', hidden_dim
+    if adaptive_pooling_place == 'AfterFC1':
+        # AfterFC1 means adaptive pooling fc1 feature
+        # which is in cls and bbox head branch
+        roi_feat = model.RoIFeatureTransform(
+            blobs_pan,
+            'roi_feat',
+            blob_rois='rois',
+            method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+            resolution=roi_size,
+            sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+            spatial_scale=spatial_scales_pan
+        )
+        fc6_list = []
+        for i in range(len(roi_feat)):
+            fc6_name = 'fc6_' + str(roi_feat[i])
+            model.FC(roi_feat[i], fc6_name, dim_pan * roi_size * roi_size, hidden_dim)
+            model.Relu(fc6_name, fc6_name)
+            fc6_list += fc6_name
+        pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
+            fc6_list, "pan_adaptive_pooling"
+        )
+        model.FC(pan_adaptive_pooling, 'fc7', hidden_dim, hidden_dim)
+        model.Relu('fc7', 'fc7')
+    elif adaptive_pooling_place == 'BeforeFC1':
+        # BeforeFC1 means directly adaptive pooling conv feature map,
+        # which can be simplify as follow:
+        # First fuse then RoI pooling
+        num_backbone_stages = len(blobs_pan)
+        resized_pan_stages = []
+        spatial_scales = []
+        # Keep N2 as it is
+        resized_pan_stages += [blobs_pan[0]]
+        spatial_scales += [spatial_scales_pan[0]]
+        # Resize all other stage into N2 scale
+        for i in range(1, num_backbone_stages):
+            resized = model.net.UpsampleNearest(
+                blobs_pan[i],
+                blobs_pan[i] + '_reszied',
+                scale=int(spatial_scales_pan[0] / spatial_scales_pan[i])
+            )
+            resized_pan_stages += [resized]
+            spatial_scales += [spatial_scales_pan[0]]
+
+        # Fusion all resized stages directly, the apply RoIPooling defined in detector.py
+        # TODO(buxingyuan): Think Twice, it seems equipollent to original Adaptive Pooling:
+        # [1. Distribute RoI into different level
+        # 2. RoIPooling in different level
+        # 3. adaptive fusion all level featue]
+        pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
+            resized_pan_stages, "pan_adaptive_pooling"
+        )
+        roi_feat = model.RoIFeatureTransform(
+            pan_adaptive_pooling,
+            'roi_feat',
+            blob_rois='rois',
+            method=cfg.FAST_RCNN.ROI_XFORM_METHOD,
+            resolution=roi_size,
+            sampling_ratio=cfg.FAST_RCNN.ROI_XFORM_SAMPLING_RATIO,
+            spatial_scale=spatial_scales_pan[0]
+        )
+        model.FC(roi_feat, 'fc6', dim_pan * roi_size * roi_size, hidden_dim)
+        model.Relu('fc6', 'fc6')
+        model.FC('fc6', 'fc7', hidden_dim, hidden_dim)
+        model.Relu('fc7', 'fc7')
+    return 'fc7', hidden_dim
 
 
 def add_pan_bottom_up_path_lateral(model, pan_level_info, blobs_fpn):

@@ -727,9 +727,19 @@ __C.PAN.PAN_ON = False
 # Channel dimension of the FPN feature levels
 __C.PAN.DIM = 256
 
-# Fusion method
+# Bottom up lateral connection
+__C.PAN.BottomUp_ON = True
+
+# Adaptive Pooling
+__C.PAN.AdaptivePooling_ON = True
+
+# Where to place adaptive pooling
+# Inlcude BeforeFC1 and AfterFC1
+__C.PAN.AdaptivePooling_Place = b'AfterFC1'
+
+# Fusion method for AdaptivePooling_ON = True
 # Include Max and Sum and Mean
-__C.PAN.FUSION_METHOD = b'Max'
+__C.PAN.FUSION_METHOD = b'Sum'
 
 # ---------------------------------------------------------------------------- #
 # Mask R-CNN options ("MRCNN" means Mask R-CNN)

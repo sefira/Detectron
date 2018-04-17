@@ -394,21 +394,15 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                     [xform_shuffled, restore_bl], blob_out
                 )
             if cfg.PAN.PAN_ON:
-                # ---------------------------------------------------------------------------- #
-                # ******************************* DEPRECATED ********************************* #
-                # ******** MOVED INTO PAN.py add_adaptive_pooling_fast_rcnn_2mlp_head ******** #
-                # ---------------------------------------------------------------------------- #
-                # PAN case: add RoIFeatureTransform to each PAN level
-                # this is just for the bottom-up config, while adaptive pooling config directly
-                #  use the Single feature level RoIFeatureTransform
+                # PAN case: add RoIFeatureTransform to every PAN level
                 k_max = cfg.FPN.ROI_MAX_LEVEL  # coarsest level of pyramid
                 k_min = cfg.FPN.ROI_MIN_LEVEL  # finest level of pyramid
                 assert len(blobs_in) == k_max - k_min + 1
                 bl_out_list = []
                 for lvl in range(k_min, k_max + 1):
-                    bl_in = blobs_in[lvl - k_min] 
+                    bl_in = blobs_in[lvl - k_min]
                     sc = spatial_scale[lvl - k_min]
-                    bl_rois = blob_rois + '_fpn' + str(lvl)
+                    bl_rois = blob_rois
                     bl_out = blob_out + '_pan' + str(lvl)
                     bl_out_list.append(bl_out)
                     bl_argmax = ['_argmax_' + bl_out] if has_argmax else []
@@ -419,17 +413,7 @@ class DetectionModelHelper(cnn.CNNModelHelper):
                         spatial_scale=sc,
                         sampling_ratio=sampling_ratio
                     )
-                # The pooled features from all levels are concatenated along the
-                # batch dimension into a single 4D tensor.
-                xform_shuffled, _ = self.net.Concat(
-                    bl_out_list, [blob_out + '_shuffled', '_concat_' + blob_out],
-                    axis=0
-                )
-                # Unshuffle to match rois from dataloader
-                restore_bl = blob_rois + '_idx_restore_int32'
-                xform_out = self.net.BatchPermutation(
-                    [xform_shuffled, restore_bl], blob_out
-                )
+                xform_out = bl_out_list
         else:
             # Single feature level
             bl_argmax = ['_argmax_' + blob_out] if has_argmax else []
