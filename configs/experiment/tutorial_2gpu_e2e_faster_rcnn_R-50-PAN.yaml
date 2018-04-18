@@ -1,6 +1,6 @@
 MODEL:
   TYPE: generalized_rcnn
-  CONV_BODY: FPN.add_fpn_ResNet50_conv5_body
+  CONV_BODY: PAN.add_pan_fpn_ResNet50_conv5_body
   NUM_CLASSES: 81
   FASTER_RCNN: True
 NUM_GPUS: 2
@@ -18,9 +18,13 @@ FPN:
 PAN:
   PAN_ON: True
   DIM: 256
+  BottomUp_ON: True
+  PAN_RPN_ON: False
+  AdaptivePooling_ON: True
+  AdaptivePooling_Place: AfterFC1
   FUSION_METHOD: Sum
 FAST_RCNN:
-  ROI_BOX_HEAD: PAN.add_pan_roi_fpn_ResNet50_conv5_head
+  ROI_BOX_HEAD: PAN.add_adaptive_pooling_head
   ROI_XFORM_METHOD: RoIAlign
   ROI_XFORM_RESOLUTION: 7
   ROI_XFORM_SAMPLING_RATIO: 2

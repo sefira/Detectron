@@ -36,17 +36,57 @@ import utils.boxes as box_utils
 # PAN with FPN with ResNet
 # ------------------------------------------------------------ #
 
+class PAN_LEVEL_INFO(object):
+    class __OnlyOne:
+        def __init__(self):
+            self.val = None
+        def __str__(self):
+            return self.val
+    instance = None
+    def __new__(cls):
+        if not PAN_LEVEL_INFO.instance:
+            PAN_LEVEL_INFO.instance = PAN_LEVEL_INFO.__OnlyOne()
+        return PAN_LEVEL_INFO.instance
+    def __getattr__(self, name):
+        return getattr(self.instance, name)
+    def __setattr__(self, name):
+        return setattr(self.instance, name)
+
+def add_pan_fpn_ResNet50_conv5_body(model):
+    level_info = PAN_LEVEL_INFO()
+    level_info.val = pan_level_info_ResNet50_conv5
+    return add_pan_onto_fpn_body(
+        model, FPN.add_fpn_ResNet50_conv5_body, pan_level_info_ResNet50_conv5
+    )
+
+def add_pan_fpn_ResNet101_conv5_body(model):
+    level_info = PAN_LEVEL_INFO()
+    level_info.val = pan_level_info_ResNet101_conv5
+    return add_pan_onto_fpn_body(
+        model, FPN.add_fpn_ResNet101_conv5_body, pan_level_info_ResNet101_conv5
+    )
+
+def add_pan_fpn_ResNet152_conv5_body(model):
+    level_info = PAN_LEVEL_INFO()
+    level_info.val = pan_level_info_ResNet152_conv5
+    return add_pan_onto_fpn_body(
+        model, FPN.add_fpn_ResNet152_conv5_body, pan_level_info_ResNet152_conv5
+    )
+
 def add_pan_roi_fpn_ResNet50_conv5_head(model, blob_in, dim_in, spatial_scale):
+    print("# ********************** DEPRECATED FUNCTIONALITY add_pan_roi_fpn_ResNet50_conv5_head ********************** #")
     return add_pan_head_onto_fpn_body(
         model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet50_conv5
     )
 
 def add_pan_roi_fpn_ResNet101_conv5_head(model, blob_in, dim_in, spatial_scale):
+    print("# ********************** DEPRECATED FUNCTIONALITY add_pan_roi_fpn_ResNet101_conv5_head ********************** #")
     return add_pan_head_onto_fpn_body(
         model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet101_conv5
     )
 
 def add_pan_roi_fpn_ResNet152_conv5_head(model, blob_in, dim_in, spatial_scale):
+    print("# ********************** DEPRECATED FUNCTIONALITY add_pan_roi_fpn_ResNet152_conv5_head ********************** #")
     return add_pan_head_onto_fpn_body(
         model, blob_in, dim_in, spatial_scale, pan_level_info_ResNet152_conv5
     )
@@ -55,9 +95,30 @@ def add_pan_roi_fpn_ResNet152_conv5_head(model, blob_in, dim_in, spatial_scale):
 # Functions for bolting PAN onto a FPN backbone architectures
 # ---------------------------------------------------------------------------- #
 
+def add_pan_onto_fpn_body(model, fpn_body_func, pan_level_info_func):
+    """Add the PAN levels to the FPN levels.
+    """
+    # Note: blobs_conv is in order: [pan_2, pan_3, pan_4, pan_5]
+    # similarly for dims_conv: [256, 256, 256, 256]
+    # similarly for spatial_scales_pan: [1/4, 1/8, 1/16, 1/32]
+    assert cfg.PAN.BottomUp_ON, "BottomUp_ON = False, can not use PAN body"
+
+    blobs_fpn, dim_fpn, spatial_scales_fpn = fpn_body_func(model)
+    blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
+        model, pan_level_info_func(), blobs_fpn
+    )
+
+    # If PAN_RPN_ON, return pan level blobs to RPN, then do adaptive pooling on pan level
+    # otherwise return fpn level blobs, then do adaptive pooling on pan level
+    if cfg.PAN.PAN_RPN_ON:
+        return blobs_pan, dim_pan, spatial_scales_pan
+    else:
+        return blobs_fpn, dim_fpn, spatial_scales_fpn
+
 def add_pan_head_onto_fpn_body(
     model, blobs_fpn, dim_fpn, spatial_scales_fpn, pan_level_info_func
 ):
+    print("# ********************** DEPRECATED FUNCTIONALITY add_pan_head_onto_fpn_body ********************** #")
     """Add the specified conv body to the model and then add FPN levels to it.
     Then add PAN levels to it.
     And fuse these PAN levels using max or sum according cfg
@@ -69,7 +130,7 @@ def add_pan_head_onto_fpn_body(
 
     if cfg.PAN.BottomUp_ON:
         blobs, dim, spatial_scales = add_pan_bottom_up_path_lateral(
-            model, pan_level_info_func(), blobs_fpn
+            model, pan_level_info_func()
         )
 
     if cfg.PAN.AdaptivePooling_ON:
@@ -79,9 +140,29 @@ def add_pan_head_onto_fpn_body(
 
     return blobs_out, dim_out
 
+# ---------------------------------------------------------------------------- #
+# Functions for PAN head, specific adaptive pooling head
+# ---------------------------------------------------------------------------- #
+
 def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
     # Fusion method is indicated in cfg.PAN.FUSION_METHOD
+    assert cfg.AdaptivePooling_ON, "AdaptivePooling_ON = False, can not use PAN head"
+
+    pan_level_info = PAN_LEVEL_INFO().val
+    # If BottomUp_ON, adaptive pooling on pan level
+    # otherwise adaptive pooling on fpn level
+    if cfg.PAN.BottomUp_ON:
+        perfix = 'pan_'
+    else:
+        perfix = ''
+    blobs_pan = [
+        perfix + (s)
+        for s in pan_level_info.blobs
+    ]
+    dim_pan = pan_level_info.dims
+    spatial_scales_pan = pan_level_info.spatial_scales
+
     fusion_method = cfg.PAN.FUSION_METHOD
     assert fusion_method in {'Sum', 'Max', 'Mean'}, \
         'Unknown fusion method: {}'.format(fusion_method)
@@ -107,13 +188,14 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
         for i in range(len(roi_feat)):
             fc6_name = 'fc6_' + str(roi_feat[i])
             model.FC(roi_feat[i], fc6_name, dim_pan * roi_size * roi_size, hidden_dim)
-            model.Relu(fc6_name, fc6_name)
             fc6_list += [fc6_name]
         pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
             fc6_list, "pan_adaptive_pooling"
         )
+        model.Relu(pan_adaptive_pooling, pan_adaptive_pooling)
         model.FC(pan_adaptive_pooling, 'fc7', hidden_dim, hidden_dim)
         model.Relu('fc7', 'fc7')
+
     elif adaptive_pooling_place == 'BeforeFC1':
         # BeforeFC1 means directly adaptive pooling conv feature map,
         # which can be simplify as follow:
@@ -158,7 +240,7 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     return 'fc7', hidden_dim
 
 
-def add_pan_bottom_up_path_lateral(model, pan_level_info, blobs_fpn):
+def add_pan_bottom_up_path_lateral(model, pan_level_info):
     """Add PAN connections based on the model described in the PAN paper."""
     # PAN levels are built starting from the finest level of the FPN.
     # First we recurisvely constructing higher resolution FPN levels.

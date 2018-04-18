@@ -728,9 +728,14 @@ __C.PAN.PAN_ON = False
 __C.PAN.DIM = 256
 
 # Bottom up lateral connection
+# MUST be True to use PAN BottomUp_ON
 __C.PAN.BottomUp_ON = True
 
+# Bottom up lateral is used to RPN, instead of FPN level RPN
+__C.PAN.PAN_RPN_ON = False
+
 # Adaptive Pooling
+# MUST be True to use PAN head
 __C.PAN.AdaptivePooling_ON = True
 
 # Where to place adaptive pooling
