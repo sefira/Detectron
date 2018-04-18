@@ -108,7 +108,7 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
             fc6_name = 'fc6_' + str(roi_feat[i])
             model.FC(roi_feat[i], fc6_name, dim_pan * roi_size * roi_size, hidden_dim)
             model.Relu(fc6_name, fc6_name)
-            fc6_list += fc6_name
+            fc6_list += [fc6_name]
         pan_adaptive_pooling = model.net.__getattr__(fusion_method)(
             fc6_list, "pan_adaptive_pooling"
         )
