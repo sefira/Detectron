@@ -105,7 +105,7 @@ def add_pan_onto_fpn_body(model, fpn_body_func, pan_level_info_func):
 
     blobs_fpn, dim_fpn, spatial_scales_fpn = fpn_body_func(model)
     blobs_pan, dim_pan, spatial_scales_pan = add_pan_bottom_up_path_lateral(
-        model, pan_level_info_func(), blobs_fpn
+        model, pan_level_info_func()
     )
 
     # If PAN_RPN_ON, return pan level blobs to RPN, then do adaptive pooling on pan level
@@ -147,9 +147,9 @@ def add_pan_head_onto_fpn_body(
 def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
     # Fusion method is indicated in cfg.PAN.FUSION_METHOD
-    assert cfg.AdaptivePooling_ON, "AdaptivePooling_ON = False, can not use PAN head"
+    assert cfg.PAN.AdaptivePooling_ON, "AdaptivePooling_ON = False, can not use PAN head"
 
-    pan_level_info = PAN_LEVEL_INFO().val
+    pan_level_info = PAN_LEVEL_INFO().val()
     # If BottomUp_ON, adaptive pooling on pan level
     # otherwise adaptive pooling on fpn level
     if cfg.PAN.BottomUp_ON:
@@ -160,9 +160,8 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
         perfix + (s)
         for s in pan_level_info.blobs
     ]
-    dim_pan = pan_level_info.dims
+    dim_pan = pan_level_info.dims[0]
     spatial_scales_pan = pan_level_info.spatial_scales
-
     fusion_method = cfg.PAN.FUSION_METHOD
     assert fusion_method in {'Sum', 'Max', 'Mean'}, \
         'Unknown fusion method: {}'.format(fusion_method)
