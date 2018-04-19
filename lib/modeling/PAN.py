@@ -160,6 +160,8 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
         perfix + (s)
         for s in pan_level_info.blobs
     ]
+    # For the finest FPN level: N2 = P2 only seeds recursion
+    blobs_pan[0] = pan_level_info.blobs[0]
     dim_pan = pan_level_info.dims[0]
     spatial_scales_pan = pan_level_info.spatial_scales
     fusion_method = cfg.PAN.FUSION_METHOD

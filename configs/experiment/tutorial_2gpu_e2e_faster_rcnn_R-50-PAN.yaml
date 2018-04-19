@@ -30,7 +30,7 @@ FAST_RCNN:
   ROI_XFORM_SAMPLING_RATIO: 2
 TRAIN:
   WEIGHTS: pretrain_model/R-50.pkl
-  DATASETS: ('coco_2014_train',)
+  DATASETS: ('coco_2014_train', 'coco_2014_valminusminival')
   SCALES: (500,)
   MAX_SIZE: 833
   BATCH_SIZE_PER_IM: 256
