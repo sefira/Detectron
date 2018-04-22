@@ -734,6 +734,9 @@ __C.PAN.BottomUp_ON = True
 # Bottom up lateral is used to RPN, instead of FPN level RPN
 __C.PAN.PAN_RPN_ON = False
 
+# PAN makes instance mask predictions
+__C.PAN.MASK_ON = False
+
 # Adaptive Pooling
 # MUST be True to use PAN head
 __C.PAN.AdaptivePooling_ON = True

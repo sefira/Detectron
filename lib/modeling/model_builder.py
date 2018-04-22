@@ -189,7 +189,7 @@ def build_generic_detection_model(
                 model, blob_conv, dim_conv, spatial_scale_conv
             )
 
-        if cfg.FPN.FPN_ON and not cfg.PAN.PAN_ON:
+        if cfg.FPN.FPN_ON:
             # After adding the RPN head, restrict FPN blobs and scales to
             # those used in the RoI heads
             blob_conv, spatial_scale_conv = _narrow_to_fpn_roi_levels(

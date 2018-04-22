@@ -108,6 +108,11 @@ def add_pan_onto_fpn_body(model, fpn_body_func, pan_level_info_func):
         model, pan_level_info_func()
     )
 
+    # Return all fpn and pan blobs in a dictionary,
+    # then let model_build.py to use it selectively according to config
+    # for example, RPN uses fpn, while roi uses pan
+    # return {"FPN": blobs_fpn, "PAN": blobs_pan}, {"FPN": dim_fpn, "PAN": dim_pan}, {"FPN": spatial_scales_fpn, "PAN": spatial_scales_pan}
+
     # If PAN_RPN_ON, return pan level blobs to RPN, then do adaptive pooling on pan level
     # otherwise return fpn level blobs, then do adaptive pooling on pan level
     if cfg.PAN.PAN_RPN_ON:
@@ -134,7 +139,7 @@ def add_pan_head_onto_fpn_body(
         )
 
     if cfg.PAN.AdaptivePooling_ON:
-        blobs_out, dim_out = add_adaptive_pooling_head(
+        blobs_out, dim_out = add_adaptive_pooling_box_head(
             model, blobs, dim, spatial_scales
         )
 
@@ -144,7 +149,7 @@ def add_pan_head_onto_fpn_body(
 # Functions for PAN head, specific adaptive pooling head
 # ---------------------------------------------------------------------------- #
 
-def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
+def add_adaptive_pooling_box_head(model, blobs_pan, dim_pan, spatial_scales_pan):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
     # Fusion method is indicated in cfg.PAN.FUSION_METHOD
     assert cfg.PAN.AdaptivePooling_ON, "AdaptivePooling_ON = False, can not use PAN head"
@@ -240,6 +245,113 @@ def add_adaptive_pooling_head(model, blobs_pan, dim_pan, spatial_scales_pan):
         model.Relu('fc7', 'fc7')
     return 'fc7', hidden_dim
 
+def add_adaptive_pooling_mask_head_v1up4convs(model, blob_in, dim_in, spatial_scale):
+    """v1up design: 4 * (conv 3x3), convT 2x2."""
+    return adaptive_pooling_mask_head_v1upXconvs(
+        model, blob_in, dim_in, spatial_scale, 4
+    )
+
+
+def add_adaptive_pooling_mask_head_v1up(model, blob_in, dim_in, spatial_scale):
+    """v1up design: 2 * (conv 3x3), convT 2x2."""
+    return adaptive_pooling_mask_head_v1upXconvs(
+        model, blob_in, dim_in, spatial_scale, 2
+    )
+
+
+def adaptive_pooling_mask_head_v1upXconvs(model, blobs_pan, dim_pan, spatial_scales_pan):
+    """Fuse all PAN extra lateral level using a adaptive pooling"""
+    # Fusion method is indicated in cfg.PAN.FUSION_METHOD
+    assert cfg.MODEL.MASK_ON, "MODEL.MASK_ON = False, can not use PAN mask head"
+    assert cfg.PAN.MASK_ON, "PAN.MASK_ON = False, can not use PAN mask head"
+
+    pan_level_info = PAN_LEVEL_INFO().val()
+    # If BottomUp_ON, adaptive pooling on pan level
+    # otherwise adaptive pooling on fpn level
+    if cfg.PAN.BottomUp_ON:
+        perfix = 'pan_'
+    else:
+        perfix = ''
+    blobs_pan = [
+        perfix + (s)
+        for s in pan_level_info.blobs
+    ]
+    # For the finest FPN level: N2 = P2 only seeds recursion
+    blobs_pan[0] = pan_level_info.blobs[0]
+    dim_pan = pan_level_info.dims[0]
+    spatial_scales_pan = pan_level_info.spatial_scales
+    fusion_method = cfg.PAN.FUSION_METHOD
+    assert fusion_method in {'Sum', 'Max', 'Mean'}, \
+        'Unknown fusion method: {}'.format(fusion_method)
+    # In mask branch, we fix the fusion place between the first and second conv layers
+    # adaptive_pooling_place = cfg.PAN.AdaptivePooling_Place
+
+    """v1upXconvs design: X * (conv 3x3), convT 2x2."""
+    mask_roi_feat = model.RoIFeatureTransform(
+        blobs_pan,
+        blob_out='_[mask]_roi_feat',
+        blob_rois='mask_rois',
+        method=cfg.MRCNN.ROI_XFORM_METHOD,
+        resolution=cfg.MRCNN.ROI_XFORM_RESOLUTION,
+        sampling_ratio=cfg.MRCNN.ROI_XFORM_SAMPLING_RATIO,
+        spatial_scale=spatial_scales_pan
+    )
+
+    dilation = cfg.MRCNN.DILATION
+    dim_inner = cfg.MRCNN.DIM_REDUCED
+
+    # independent fcn1 for all levels
+    mask_fcn1_list = []
+    for i in range(len(mask_roi_feat)):
+        mask_fcn1_name = '_[mask]_fcn1' + str(mask_roi_feat[i])
+        model.Conv(
+            mask_roi_feat[i],
+            mask_fcn1_name,
+            dim_pan,
+            dim_inner,
+            kernel=3,
+            pad=1 * dilation,
+            stride=1,
+            weight_init=(cfg.MRCNN.CONV_INIT, {'std': 0.001}),
+            bias_init=('ConstantFill', {'value': 0.})
+        )
+        mask_fcn1_list += [mask_fcn1_name]
+    # fuse
+    pan_adaptive_pooling_mask_fcn1 = model.net.__getattr__(fusion_method)(
+        mask_fcn1_list, "pan_adaptive_pooling_mask_fcn1"
+    )
+    model.Relu(pan_adaptive_pooling_mask_fcn1, pan_adaptive_pooling_mask_fcn1)
+
+    current = pan_adaptive_pooling_mask_fcn1
+    for i in range(1, num_convs):
+        current = model.Conv(
+            '_[mask]_fcn' + str(i),
+            '_[mask]_fcn' + str(i + 1),
+            dim_inner,
+            dim_inner,
+            kernel=3,
+            pad=1 * dilation,
+            stride=1,
+            weight_init=(cfg.MRCNN.CONV_INIT, {'std': 0.001}),
+            bias_init=('ConstantFill', {'value': 0.})
+        )
+        current = model.Relu(current, current)
+
+    # upsample layer
+    model.ConvTranspose(
+        current,
+        'conv5_mask',
+        dim_inner,
+        dim_inner,
+        kernel=2,
+        pad=0,
+        stride=2,
+        weight_init=(cfg.MRCNN.CONV_INIT, {'std': 0.001}),
+        bias_init=const_fill(0.0)
+    )
+    blob_mask = model.Relu('conv5_mask', 'conv5_mask')
+
+    return blob_mask, dim_inner
 
 def add_pan_bottom_up_path_lateral(model, pan_level_info):
     """Add PAN connections based on the model described in the PAN paper."""
