@@ -259,7 +259,7 @@ def add_adaptive_pooling_mask_head_v1up(model, blob_in, dim_in, spatial_scale):
     )
 
 
-def adaptive_pooling_mask_head_v1upXconvs(model, blobs_pan, dim_pan, spatial_scales_pan):
+def adaptive_pooling_mask_head_v1upXconvs(model, blobs_pan, dim_pan, spatial_scales_pan, num_convs):
     """Fuse all PAN extra lateral level using a adaptive pooling"""
     # Fusion method is indicated in cfg.PAN.FUSION_METHOD
     assert cfg.MODEL.MASK_ON, "MODEL.MASK_ON = False, can not use PAN mask head"
@@ -325,7 +325,7 @@ def adaptive_pooling_mask_head_v1upXconvs(model, blobs_pan, dim_pan, spatial_sca
     current = pan_adaptive_pooling_mask_fcn1
     for i in range(1, num_convs):
         current = model.Conv(
-            '_[mask]_fcn' + str(i),
+            current,
             '_[mask]_fcn' + str(i + 1),
             dim_inner,
             dim_inner,
