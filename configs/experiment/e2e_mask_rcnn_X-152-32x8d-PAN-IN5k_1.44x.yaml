@@ -1,6 +1,6 @@
 MODEL:
   TYPE: generalized_rcnn
-  CONV_BODY: PAN.add_pan_fpn_ResNet50_conv5_body
+  CONV_BODY: PAN.add_pan_fpn_ResNet152_conv5_body
   NUM_CLASSES: 81
   FASTER_RCNN: True
   MASK_ON: True
