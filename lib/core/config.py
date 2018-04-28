@@ -190,7 +190,7 @@ __C.TRAIN.AUTO_RESUME = True
 
 
 # ---------------------------------------------------------------------------- #
-# Data loader options
+# Data loader options (see lib/roi_data/loader.py for more info)
 # ---------------------------------------------------------------------------- #
 __C.DATA_LOADER = AttrDict()
 
@@ -198,6 +198,12 @@ __C.DATA_LOADER = AttrDict()
 # threads can cause GIL-based interference with Python Ops leading to *slower*
 # training; 4 seems to be the sweet spot in our experience)
 __C.DATA_LOADER.NUM_THREADS = 4
+
+# Size of the shared minibatch queue
+__C.DATA_LOADER.MINIBATCH_QUEUE_SIZE = 64
+
+# Capacity of the per GPU blobs queue
+__C.DATA_LOADER.BLOBS_QUEUE_CAPACITY = 8
 
 
 # ---------------------------------------------------------------------------- #
@@ -592,6 +598,8 @@ __C.SOLVER.MOMENTUM = 0.9
 
 # L2 regularization hyperparameter
 __C.SOLVER.WEIGHT_DECAY = 0.0005
+# L2 regularization hyperparameter for GroupNorm's parameters
+__C.SOLVER.WEIGHT_DECAY_GN = 0.0
 
 # Warm up to SOLVER.BASE_LR over this number of SGD iterations
 __C.SOLVER.WARM_UP_ITERS = 500
@@ -627,6 +635,11 @@ __C.FAST_RCNN.ROI_BOX_HEAD = b''
 
 # Hidden layer dimension when using an MLP for the RoI box head
 __C.FAST_RCNN.MLP_HEAD_DIM = 1024
+
+# Hidden Conv layer dimension when using Convs for the RoI box head
+__C.FAST_RCNN.CONV_HEAD_DIM = 256
+# Number of stacked Conv layers in the RoI box head
+__C.FAST_RCNN.NUM_STACKED_CONVS = 4
 
 # RoI transformation function (e.g., RoIPool or RoIAlign)
 # (RoIPoolF is the same as RoIPool; ignore the trailing 'F')
@@ -708,6 +721,8 @@ __C.FPN.RPN_ASPECT_RATIOS = (0.5, 1, 2)
 __C.FPN.RPN_ANCHOR_START_SIZE = 32
 # Use extra FPN levels, as done in the RetinaNet paper
 __C.FPN.EXTRA_CONV_LEVELS = False
+# Use GroupNorm in the FPN-specific layers (lateral, etc.)
+__C.FPN.USE_GN = False
 
 
 # ---------------------------------------------------------------------------- #
@@ -902,9 +917,25 @@ __C.RESNETS.STRIDE_1X1 = True
 
 # Residual transformation function
 __C.RESNETS.TRANS_FUNC = b'bottleneck_transformation'
+# ResNet's stem function (conv1 and pool1)
+__C.RESNETS.STEM_FUNC = b'basic_bn_stem'
+# ResNet's shortcut function
+__C.RESNETS.SHORTCUT_FUNC = b'basic_bn_shortcut'
 
 # Apply dilation in stage "res5"
 __C.RESNETS.RES5_DILATION = 1
+
+
+# ---------------------------------------------------------------------------- #
+# GroupNorm options
+# ---------------------------------------------------------------------------- #
+__C.GROUP_NORM = AttrDict()
+# Number of dimensions per group in GroupNorm (-1 if using NUM_GROUPS)
+__C.GROUP_NORM.DIM_PER_GP = -1
+# Number of groups in GroupNorm (-1 if using DIM_PER_GP)
+__C.GROUP_NORM.NUM_GROUPS = 32
+# GroupNorm's small constant in the denominator
+__C.GROUP_NORM.EPSILON = 1e-5
 
 
 # ---------------------------------------------------------------------------- #
